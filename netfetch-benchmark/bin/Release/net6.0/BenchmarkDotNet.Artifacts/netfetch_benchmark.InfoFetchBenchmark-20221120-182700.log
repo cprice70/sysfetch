@@ -1,0 +1,133 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 1 benchmark(s) in total *****
+// ***** Building 1 exe(s) in Parallel: Start   *****
+// start dotnet  restore /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 /p:Deterministic=true /p:Optimize=true in C:\Users\cpric\Projects\netfetch-benchmark\bin\Release\net6.0\fc270c49-a264-41bb-83fb-d26dfc0057e0
+// command took 1.14s and exited with 0
+// start dotnet  build -c Release --no-restore /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 /p:Deterministic=true /p:Optimize=true in C:\Users\cpric\Projects\netfetch-benchmark\bin\Release\net6.0\fc270c49-a264-41bb-83fb-d26dfc0057e0
+// command took 12.36s and exited with 1
+// start dotnet  build -c Release --no-restore --no-dependencies /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 /p:Deterministic=true /p:Optimize=true in C:\Users\cpric\Projects\netfetch-benchmark\bin\Release\net6.0\fc270c49-a264-41bb-83fb-d26dfc0057e0
+// command took 2.28s and exited with 0
+// ***** Done, took 00:00:15 (15.85 sec)   *****
+// Found 1 benchmarks:
+//   InfoFetchBenchmark.TestConstruction: DefaultJob
+
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: High performance)
+// **************************
+// Benchmark: InfoFetchBenchmark.TestConstruction: DefaultJob
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet fc270c49-a264-41bb-83fb-d26dfc0057e0.dll --benchmarkName netfetch_benchmark.InfoFetchBenchmark.TestConstruction --job Default --benchmarkId 0 in C:\Users\cpric\Projects\netfetch-benchmark\bin\Release\net6.0\fc270c49-a264-41bb-83fb-d26dfc0057e0\bin\Release\net6.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// Runtime=.NET 6.0.11 (6.0.1122.52304), X64 RyuJIT AVX2
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX2,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT VectorSize=256
+// Job: DefaultJob
+
+OverheadJitting  1: 1 op, 177800.00 ns, 177.8000 us/op
+WorkloadJitting  1: 1 op, 1229393700.00 ns, 1.2294 s/op
+
+OverheadJitting  2: 1 op, 200.00 ns, 200.0000 ns/op
+WorkloadJitting  2: 1 op, 1175105300.00 ns, 1.1751 s/op
+
+WorkloadWarmup   1: 1 op, 1170428700.00 ns, 1.1704 s/op
+WorkloadWarmup   2: 1 op, 1159652700.00 ns, 1.1597 s/op
+WorkloadWarmup   3: 1 op, 1173859600.00 ns, 1.1739 s/op
+WorkloadWarmup   4: 1 op, 1161979000.00 ns, 1.1620 s/op
+WorkloadWarmup   5: 1 op, 1164097100.00 ns, 1.1641 s/op
+WorkloadWarmup   6: 1 op, 1170637400.00 ns, 1.1706 s/op
+WorkloadWarmup   7: 1 op, 1170453200.00 ns, 1.1705 s/op
+
+// BeforeActualRun
+WorkloadActual   1: 1 op, 1178551000.00 ns, 1.1786 s/op
+WorkloadActual   2: 1 op, 1176235400.00 ns, 1.1762 s/op
+WorkloadActual   3: 1 op, 1166524100.00 ns, 1.1665 s/op
+WorkloadActual   4: 1 op, 1165797900.00 ns, 1.1658 s/op
+WorkloadActual   5: 1 op, 1165630400.00 ns, 1.1656 s/op
+WorkloadActual   6: 1 op, 1171165500.00 ns, 1.1712 s/op
+WorkloadActual   7: 1 op, 1186853300.00 ns, 1.1869 s/op
+WorkloadActual   8: 1 op, 1172854800.00 ns, 1.1729 s/op
+WorkloadActual   9: 1 op, 1168346900.00 ns, 1.1683 s/op
+WorkloadActual  10: 1 op, 1163202400.00 ns, 1.1632 s/op
+WorkloadActual  11: 1 op, 1168627800.00 ns, 1.1686 s/op
+WorkloadActual  12: 1 op, 1172653400.00 ns, 1.1727 s/op
+WorkloadActual  13: 1 op, 1168691600.00 ns, 1.1687 s/op
+WorkloadActual  14: 1 op, 1164827300.00 ns, 1.1648 s/op
+WorkloadActual  15: 1 op, 1168742300.00 ns, 1.1687 s/op
+
+// AfterActualRun
+WorkloadResult   1: 1 op, 1178551000.00 ns, 1.1786 s/op
+WorkloadResult   2: 1 op, 1176235400.00 ns, 1.1762 s/op
+WorkloadResult   3: 1 op, 1166524100.00 ns, 1.1665 s/op
+WorkloadResult   4: 1 op, 1165797900.00 ns, 1.1658 s/op
+WorkloadResult   5: 1 op, 1165630400.00 ns, 1.1656 s/op
+WorkloadResult   6: 1 op, 1171165500.00 ns, 1.1712 s/op
+WorkloadResult   7: 1 op, 1172854800.00 ns, 1.1729 s/op
+WorkloadResult   8: 1 op, 1168346900.00 ns, 1.1683 s/op
+WorkloadResult   9: 1 op, 1163202400.00 ns, 1.1632 s/op
+WorkloadResult  10: 1 op, 1168627800.00 ns, 1.1686 s/op
+WorkloadResult  11: 1 op, 1172653400.00 ns, 1.1727 s/op
+WorkloadResult  12: 1 op, 1168691600.00 ns, 1.1687 s/op
+WorkloadResult  13: 1 op, 1164827300.00 ns, 1.1648 s/op
+WorkloadResult  14: 1 op, 1168742300.00 ns, 1.1687 s/op
+
+// AfterAll
+// Benchmark Process 10692 has exited with code 0.
+
+Mean = 1.169 s, StdErr = 0.001 s (0.10%), N = 14, StdDev = 0.004 s
+Min = 1.163 s, Q1 = 1.166 s, Median = 1.169 s, Q3 = 1.172 s, Max = 1.179 s
+IQR = 0.006 s, LowerFence = 1.157 s, UpperFence = 1.182 s
+ConfidenceInterval = [1.164 s; 1.174 s] (CI 99.9%), Margin = 0.005 s (0.43% of Mean)
+Skewness = 0.57, Kurtosis = 2.21, MValue = 2
+
+// ** Remained 0 (0.0%) benchmark(s) to run. Estimated finish 2022-11-20 18:27 (0h 0m from now) **
+Successfully reverted power plan (GUID: 381b4222-f694-41f0-9685-ff5bb260df2e FriendlyName: Balanced)
+// ***** BenchmarkRunner: Finish  *****
+
+// * Export *
+  BenchmarkDotNet.Artifacts\results\netfetch_benchmark.InfoFetchBenchmark-report.csv
+  BenchmarkDotNet.Artifacts\results\netfetch_benchmark.InfoFetchBenchmark-report-github.md
+  BenchmarkDotNet.Artifacts\results\netfetch_benchmark.InfoFetchBenchmark-report.html
+
+// * Detailed results *
+InfoFetchBenchmark.TestConstruction: DefaultJob
+Runtime = .NET 6.0.11 (6.0.1122.52304), X64 RyuJIT AVX2; GC = Concurrent Workstation
+Mean = 1.169 s, StdErr = 0.001 s (0.10%), N = 14, StdDev = 0.004 s
+Min = 1.163 s, Q1 = 1.166 s, Median = 1.169 s, Q3 = 1.172 s, Max = 1.179 s
+IQR = 0.006 s, LowerFence = 1.157 s, UpperFence = 1.182 s
+ConfidenceInterval = [1.164 s; 1.174 s] (CI 99.9%), Margin = 0.005 s (0.43% of Mean)
+Skewness = 0.57, Kurtosis = 2.21, MValue = 2
+-------------------- Histogram --------------------
+[1.161 s ; 1.181 s) | @@@@@@@@@@@@@@
+---------------------------------------------------
+
+// * Summary *
+
+BenchmarkDotNet=v0.13.2, OS=Windows 11 (10.0.25247.1000)
+Intel Core i7-10750H CPU 2.60GHz, 1 CPU, 12 logical and 6 physical cores
+.NET SDK=7.0.100
+  [Host]     : .NET 6.0.11 (6.0.1122.52304), X64 RyuJIT AVX2
+  DefaultJob : .NET 6.0.11 (6.0.1122.52304), X64 RyuJIT AVX2
+
+
+|           Method |    Mean |    Error |   StdDev |
+|----------------- |--------:|---------:|---------:|
+| TestConstruction | 1.169 s | 0.0050 s | 0.0044 s |
+
+// * Hints *
+Outliers
+  InfoFetchBenchmark.TestConstruction: Default -> 1 outlier  was  removed (1.19 s)
+
+// * Legends *
+  Mean   : Arithmetic mean of all measurements
+  Error  : Half of 99.9% confidence interval
+  StdDev : Standard deviation of all measurements
+  1 s    : 1 Second (1 sec)
+
+// ***** BenchmarkRunner: End *****
+Run time: 00:00:28 (28.51 sec), executed benchmarks: 1
+
+Global total time: 00:00:44 (44.59 sec), executed benchmarks: 1
+// * Artifacts cleanup *
