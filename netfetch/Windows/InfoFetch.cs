@@ -7,7 +7,13 @@ namespace netfetch.Windows
 {
     public class InfoFetch : IInfoFetch
     {
-        private readonly Dictionary<string, string> _info = new Dictionary<string, string>();
+        //private readonly Dictionary<string, string> _info = new();
+        private string _host;
+        private string _memory;
+        private string _osName;
+        private string _kernel;
+        private string _lastBootTime;
+
         private const string FMT = "O";
 
         public InfoFetch()
@@ -21,46 +27,8 @@ namespace netfetch.Windows
                 foreach (ManagementObject mo in mc.GetInstances())
                 {
                     // display general system information
-                    _info["host"] = $"{mo["Manufacturer"]} {mo["Model"]}";
-                }
-            }
-            #endregion
-            #region DesktopMonitor
-            ManagementClass mc2 = new ManagementClass("Win32_DesktopMonitor");
-            //collection to store all management objects
-
-            ManagementObjectCollection moc2 = mc.GetInstances();
-            if (moc2.Count != 0)
-            {
-                foreach (ManagementObject mo in mc2.GetInstances())
-                {
-                    // display general system information
-                    _info["resolution"] = $"{mo["ScreenWidth"]}x{mo["ScreenHeight"]}";
-                }
-            }
-            #endregion
-            #region CPU
-            ManagementClass mc3 = new ManagementClass("Win32_Processor");
-            //collection to store all management objects
-
-            ManagementObjectCollection moc3 = mc.GetInstances();
-            if (moc3.Count != 0)
-            {
-                foreach (ManagementObject mo in mc3.GetInstances())
-                {
-                    // display general system information
-                    _info["cpu"] = $"{mo["Name"]}";
-                }
-            }
-            #endregion
-            #region GPU
-            ManagementObjectSearcher mos_gpu = new ManagementObjectSearcher("select * from Win32_VideoController");
-
-            foreach (ManagementObject managementObject in mos_gpu.Get())
-            {
-                if (managementObject["Name"] != null)
-                {
-                    _info["gpu"] = managementObject["Name"].ToString();
+                    _host = $"{mo["Manufacturer"]} {mo["Model"]}";
+                    break;
                 }
             }
             #endregion
@@ -71,16 +39,15 @@ namespace netfetch.Windows
             foreach (ManagementObject managementObject in mos.Get())
             {
                 if (managementObject["Caption"] != null)
-                    _info["osname"] = managementObject["Caption"].ToString();
+                    _osName = managementObject["Caption"].ToString();
 
                 if (managementObject["Version"] != null)
-                    _info["version"] = managementObject["Version"].ToString();
+                    _kernel = managementObject["Version"].ToString();
 
                 if (managementObject["LastBootUpTime"] != null)
                 {
-
                     var boot = managementObject["LastBootUpTime"];
-                    _info["lastboottime"] = boot.ToString();
+                    _lastBootTime = boot.ToString();
                 }
             }
             #endregion
@@ -90,8 +57,7 @@ namespace netfetch.Windows
         {
             get
             {
-                _info.TryGetValue("osname", out string? value);
-                return value ?? string.Empty;
+                return _osName ?? string.Empty;
             }
         }
 
@@ -99,8 +65,7 @@ namespace netfetch.Windows
         {
             get
             {
-                _info.TryGetValue("host", out var host);
-                return host ?? string.Empty;
+                return _host ?? string.Empty;
             }
         }
 
@@ -108,8 +73,7 @@ namespace netfetch.Windows
         {
             get
             {
-                _info.TryGetValue("version", out string? version);
-                return version ?? string.Empty;
+                return _kernel ?? string.Empty;
             }
         }
 
@@ -117,37 +81,81 @@ namespace netfetch.Windows
         {
             get
             {
-                _info.TryGetValue("lastboottime", out string? lastboottime);
-                DateTime bootTime = ManagementDateTimeConverter.ToDateTime(lastboottime);
+                DateTime bootTime = ManagementDateTimeConverter.ToDateTime(_lastBootTime);
 
                 return (DateTime.Now - bootTime).ToString() ?? string.Empty;
             }
         }
 
-        public string Resolution
+        public IEnumerable<string> Resolution
         {
             get
             {
-                _info.TryGetValue("resolution", out string? resolution);
-                return resolution ?? string.Empty;
+                ManagementClass mc2 = new ManagementClass("Win32_DesktopMonitor");
+            
+                ManagementObjectCollection moc2 = mc2.GetInstances();
+                if (moc2.Count != 0)
+                {
+                    foreach (ManagementObject mo in mc2.GetInstances())
+                    {
+                        // display general system information
+                       if (mo["ScreenWidth"] != null && mo["ScreenHeight"] != null) 
+                          yield return $"{mo["ScreenWidth"]}x{mo["ScreenHeight"]}";
+                    }
+                }
+
+                yield return string.Empty;
             }
         }
 
-        public string CPU
+        public IEnumerable<string> CPU
         {
             get
             {
-                _info.TryGetValue("cpu", out string? cpu);
-                return cpu ?? string.Empty;
+                ManagementObjectSearcher mos_gpu = new ManagementObjectSearcher("select * from Win32_Processor");
+
+                foreach (ManagementObject managementObject in mos_gpu.Get())
+                {
+                    if (managementObject["Name"] != null)
+                    {
+                        yield return managementObject["Name"].ToString();
+                    }
+                }
+                yield return string.Empty;
             }
         }
 
-        public string GPU
+        public IEnumerable<string> GPU
         {
             get
             {
-                _info.TryGetValue("gpu", out string? gpu);
-                return gpu ?? string.Empty;
+                 ManagementObjectSearcher mos_gpu = new ManagementObjectSearcher("select * from Win32_VideoController");
+
+                foreach (ManagementObject managementObject in mos_gpu.Get())
+                {
+                    if (managementObject["Name"] != null)
+                    {
+                        yield return managementObject["Name"].ToString();
+                    }
+                }
+                yield return string.Empty;
+            }
+        }
+
+        public string Memory 
+        { 
+            get
+            {
+                ObjectQuery wql = new ObjectQuery("SELECT * FROM Win32_OperatingSystem");
+                ManagementObjectSearcher searcher = new ManagementObjectSearcher(wql);
+                ManagementObjectCollection results = searcher.Get();
+
+                foreach (ManagementObject result in results)
+                {
+                    return $"{(UInt64)result["FreePhysicalMemory"]/1024 } MB / { (UInt64)result["TotalVisibleMemorySize"]/1024 } MB";
+                }
+                
+                return string.Empty;
             }
         }
     }

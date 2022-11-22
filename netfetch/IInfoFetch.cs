@@ -12,8 +12,9 @@ namespace netfetch
         public string Host { get; }
         public string Kernel { get; }
         public string Uptime { get; }
-        public string Resolution { get; }
-        public string CPU { get; }
-        public string GPU { get; }
+        public IEnumerable<string> Resolution { get; }
+        public IEnumerable<string> CPU { get; }
+        public IEnumerable<string> GPU { get; }
+        public string Memory { get; }
     }
 }

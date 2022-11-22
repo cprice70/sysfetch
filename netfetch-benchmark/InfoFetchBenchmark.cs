@@ -8,12 +8,24 @@ using System.Threading.Tasks;
 
 namespace netfetch_benchmark
 {
+    [MemoryDiagnoser]
     public class InfoFetchBenchmark
     {
         [Benchmark]
         public void TestConstruction()
         {
             var info = new InfoFetch();
+        }
+
+        [Benchmark]
+        public void TestGpu()
+        {
+            var info = new InfoFetch();
+
+            foreach ( var gpu in info.GPU)
+            { 
+                var test = gpu;
+            }
         }
     }
 }
