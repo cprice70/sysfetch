@@ -17,4 +17,6 @@ public class SysInfo
     public IEnumerable<string>? Resolution { get; set; } = null;
     
     public string Memory { get; set; } = string.Empty;
+
+    public string Model { get; set; } = string.Empty;
 }
