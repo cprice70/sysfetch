@@ -22,7 +22,7 @@ namespace netfetch_benchmark
         {
             var info = new InfoFetch();
 
-            foreach ( var gpu in info.GPU)
+            foreach ( var gpu in info.SysInfo.GPUs)
             { 
                 var test = gpu;
             }

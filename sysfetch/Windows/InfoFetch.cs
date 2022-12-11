@@ -2,12 +2,11 @@
 
 namespace sysfetch.Windows
 {
-
     public class InfoFetch : IInfoFetch
     {
         private string? _lastBootTime = string.Empty;
         private const string FMT = "O";
-
+        private const string queryOS = "SELECT * FROM Win32_OperatingSystem";
         public SysInfo SysInfo { get; } = new();
         
         public InfoFetch()
@@ -15,7 +14,7 @@ namespace sysfetch.Windows
             #region ComputerSystem
             ManagementClass mc = new ManagementClass("Win32_ComputerSystem");
 
-            ManagementObjectCollection moc = mc.GetInstances();
+            using ManagementObjectCollection moc = mc.GetInstances();
             if (moc.Count != 0)
             {
                 foreach (ManagementObject mo in mc.GetInstances())
@@ -28,7 +27,7 @@ namespace sysfetch.Windows
             #endregion
 
             #region OperatingSystem
-            ManagementObjectSearcher mos = new ManagementObjectSearcher("select * from Win32_OperatingSystem");
+            using var mos = new ManagementObjectSearcher(queryOS);
 
             foreach (ManagementObject managementObject in mos.Get())
             {
@@ -62,9 +61,9 @@ namespace sysfetch.Windows
 
         private static IEnumerable<string> GetResolutionList()
         {
-            ManagementClass mc2 = new ManagementClass("Win32_DesktopMonitor");
+            var mc2 = new ManagementClass("Win32_DesktopMonitor");
             
-            ManagementObjectCollection moc2 = mc2.GetInstances();
+            using ManagementObjectCollection moc2 = mc2.GetInstances();
             if (moc2.Count == 0) yield break;
             foreach (ManagementObject mo in mc2.GetInstances())
             {
@@ -74,9 +73,10 @@ namespace sysfetch.Windows
             }
         }
 
+        private const string queryCPUs = "SELECT * FROM Win32_Processor";
         private static IEnumerable<string>? GetCPUs()
         {
-            ManagementObjectSearcher mos_gpu = new ManagementObjectSearcher("select * from Win32_Processor"); 
+            using var mos_gpu = new ManagementObjectSearcher(queryCPUs); 
             foreach (ManagementObject managementObject in mos_gpu.Get())
             {
                 if (managementObject["Name"] is not null)
@@ -86,9 +86,10 @@ namespace sysfetch.Windows
             }
         }
 
+        private const string queryGPU = "SELECT * FROM Win32_VideoController";
         private static IEnumerable<string> GetGPUs()
         {
-            var query = from ManagementObject mo in new ManagementObjectSearcher("select * from Win32_VideoController")
+            var query = from ManagementObject mo in new ManagementObjectSearcher(queryGPU)
                     .Get()
                 where mo["Name"] != null
                 select mo["Name"].ToString();
@@ -98,12 +99,12 @@ namespace sysfetch.Windows
                 yield return name;
             }
         }
-
-        public string GetMemory()
+        
+        private static string GetMemory()
         {
-            ObjectQuery wql = new ObjectQuery("SELECT * FROM Win32_OperatingSystem");
-            ManagementObjectSearcher searcher = new ManagementObjectSearcher(wql);
-            ManagementObjectCollection results = searcher.Get();
+            ObjectQuery wql = new ObjectQuery(queryOS);
+            using ManagementObjectSearcher searcher = new ManagementObjectSearcher(wql);
+            using ManagementObjectCollection results = searcher.Get();
 
             foreach (ManagementObject result in results)
             {
