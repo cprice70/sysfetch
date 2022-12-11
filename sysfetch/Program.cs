@@ -10,7 +10,7 @@ else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 
 if (info is null)
 {
-    Console.WriteLine("Platform is not suppported");
+    Console.WriteLine("Platform is not supported");
     Environment.Exit(0);
 }
 
