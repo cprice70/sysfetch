@@ -3,17 +3,17 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
-    <RootNamespace>netfetch_benchmark</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <SelfContained>false</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.13.2" />
+    <Folder Include="MacOS\" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\netfetch\netfetch.csproj" />
+    <PackageReference Include="System.Management" Version="7.0.0" />
   </ItemGroup>
 
 </Project>

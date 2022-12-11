@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33110.190
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "netfetch", "netfetch\netfetch.csproj", "{4312E73A-A2A5-4CC7-8451-24158D9BC195}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "sysfetch", "sysfetch\sysfetch.csproj", "{4312E73A-A2A5-4CC7-8451-24158D9BC195}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "netfetch-benchmark", "netfetch-benchmark\netfetch-benchmark.csproj", "{7277D46F-020D-49C3-8C09-590BBB1F6FA6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "sysfetch-benchmark", "sysfetch-benchmark\sysfetch-benchmark.csproj", "{7277D46F-020D-49C3-8C09-590BBB1F6FA6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sysfetch-tests", "sysfetch-tests\sysfetch-tests.csproj", "{2AF3B236-D52A-4A3B-B820-313DB9860461}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{7277D46F-020D-49C3-8C09-590BBB1F6FA6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7277D46F-020D-49C3-8C09-590BBB1F6FA6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7277D46F-020D-49C3-8C09-590BBB1F6FA6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2AF3B236-D52A-4A3B-B820-313DB9860461}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2AF3B236-D52A-4A3B-B820-313DB9860461}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2AF3B236-D52A-4A3B-B820-313DB9860461}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2AF3B236-D52A-4A3B-B820-313DB9860461}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
