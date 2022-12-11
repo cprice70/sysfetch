@@ -425,3 +425,5 @@ FodyWeavers.xsd
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,visualstudio
 .idea/.idea.netfetch/.idea/
+
+.idea/.idea.sysfetch/.idea/
