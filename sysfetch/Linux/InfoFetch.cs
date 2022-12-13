@@ -1,5 +1,4 @@
-﻿using System.Management;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using sysfetch.Extensions;
 
 namespace sysfetch.Linux
@@ -13,28 +12,28 @@ namespace sysfetch.Linux
 
         public InfoFetch()
         {
-            GetCPUs();
-            GetModel();
-            GetUptime();
+            SysInfo.CPU = GetCPUs();
+            SysInfo.Model = GetModel();
+            SysInfo.Uptime = GetUptime();
             SysInfo.GPUs = GetGPUs();
+            SysInfo.Memory = GetMemory();
         }
 
-        private void GetCPUs()
+        private static IEnumerable<string> GetCPUs()
         {
-            if (!File.Exists(CpuPath)) return;
+            if (!File.Exists(CpuPath)) yield return null;
 
             var cpuInfo = File.ReadAllText(CpuPath);
 
             var cpu = cpuInfo.GetValue("Model Name");
             var cores = cpuInfo.GetValue("cpu cores");
-            var cpus = new List<string>() { $"{cpu} - {cores}" };
-
-            SysInfo.CPU = cpus;
+            
+            yield return  $"{cpu} - {cores}";
         }
 
         private const string GpuType = "all";
 
-        private IEnumerable<string> GetGPUs()
+        private static IEnumerable<string> GetGPUs()
         {
             // Read GPUs into array.
             var gpuCmd = CommandHelpers.OutputFromCommand("lspci","-mm");
@@ -43,8 +42,8 @@ namespace sysfetch.Linux
                 .Distinct()
                 .Select(m => m.Replace("\"", "").Trim()));
             var gpus = gpu_cmd.Split('\n').ToList();
-
-             if (gpus[0].Contains("Intel") && gpus[1].Contains("Intel"))
+            
+            if (gpus[0].Contains("Intel") && gpus[1].Contains("Intel"))
             {
                 gpus.RemoveAt(0);
             }
@@ -106,50 +105,53 @@ namespace sysfetch.Linux
             }
         }
 
-        private void GetModel()
+        private static string GetModel()
         {
             if (Directory.Exists("/system/app/") && Directory.Exists("/system/priv-app"))
             {
-                SysInfo.Model = Environment.GetEnvironmentVariable("ro.product.brand") + " " + Environment.GetEnvironmentVariable("ro.product.model");
+                return Environment.GetEnvironmentVariable("ro.product.brand") + " " + Environment.GetEnvironmentVariable("ro.product.model");
             }
             else if (File.Exists("/sys/devices/virtual/dmi/id/board_vendor") || File.Exists("/sys/devices/virtual/dmi/id/board_name"))
             {
-                SysInfo.Model = File.ReadAllText("/sys/devices/virtual/dmi/id/board_vendor");
-                SysInfo.Model += " " + File.ReadAllText("/sys/devices/virtual/dmi/id/board_name");
+                var result = File.ReadAllText("/sys/devices/virtual/dmi/id/board_vendor");
+                result += " " + File.ReadAllText("/sys/devices/virtual/dmi/id/board_name");
+                return result;
             }
             else if (File.Exists("/sys/devices/virtual/dmi/id/product_name") || File.Exists("/sys/devices/virtual/dmi/id/product_version"))
             {
-                SysInfo.Model = File.ReadAllText("/sys/devices/virtual/dmi/id/product_name");
-                SysInfo.Model += " " + File.ReadAllText("/sys/devices/virtual/dmi/id/product_version");
+                
+                var result = File.ReadAllText("/sys/devices/virtual/dmi/id/product_name");
+                result += " " + File.ReadAllText("/sys/devices/virtual/dmi/id/product_version");
+                return result;
             }
             else if (File.Exists("/sys/firmware/devicetree/base/model"))
             {
-                SysInfo.Model = File.ReadAllText("/sys/firmware/devicetree/base/model");
+                return File.ReadAllText("/sys/firmware/devicetree/base/model");
             }
             else if (File.Exists("/tmp/sysinfo/model"))
             {
-                SysInfo.Model = File.ReadAllText("/tmp/sysinfo/model");
+                return File.ReadAllText("/tmp/sysinfo/model");
             }
+
+            return string.Empty;
         }
 
         private string _uptime = string.Empty;
-        private void GetUptime()
+        private string GetUptime()
         {
             if (File.Exists("/proc/uptime"))
             {
                 _uptime = File.ReadAllText("/proc/uptime");
                 _uptime = _uptime.Split('.')[0];
-                SysInfo.Uptime = Convert.ToInt32(_uptime).GetHumanReadableString();
+                return Convert.ToInt32(_uptime).GetHumanReadableString();
             }
-            else
-            {
-                var bootTime = DateTime.Parse(System.Diagnostics.Process.Start("uptime -s").StandardOutput.ReadToEnd().Trim());
-                var now = DateTime.Now;
-                SysInfo.Uptime = Convert.ToInt32((now - bootTime).TotalSeconds).GetHumanReadableString();
-            }
+
+            var bootTime = DateTime.Parse(System.Diagnostics.Process.Start("uptime -s").StandardOutput.ReadToEnd().Trim());
+            var now = DateTime.Now;
+            return Convert.ToInt32((now - bootTime).TotalSeconds).GetHumanReadableString();
         }
 
-        private void GetMemory()
+        private static string GetMemory()
         {
             var memUsed = 0;
             
@@ -176,7 +178,12 @@ namespace sysfetch.Linux
                 memUsed /= 1024;
             }
 
-            SysInfo.Memory = $"{memUsed} MB / {memTotal} MB";
+            return $"{memUsed} MB / {memTotal} MB";
+        }
+
+        private IEnumerable<string> GetResolutions()
+        {
+            
         }
     }
 }
