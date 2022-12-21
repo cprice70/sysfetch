@@ -3,7 +3,6 @@ using sysfetch.Extensions;
 
 namespace sysfetch.Linux
 {
-
     public class InfoFetch : IInfoFetch
     {
         public SysInfo SysInfo { get; } = new();
@@ -19,7 +18,7 @@ namespace sysfetch.Linux
             SysInfo.Memory = GetMemory();
         }
 
-        private static IEnumerable<string> GetCPUs()
+        private static IEnumerable<string?> GetCPUs()
         {
             if (!File.Exists(CpuPath)) yield return null;
 
@@ -181,9 +180,78 @@ namespace sysfetch.Linux
             return $"{memUsed} MB / {memTotal} MB";
         }
 
-        private IEnumerable<string> GetResolutions()
+        private IEnumerable<string> GetResolutions(string refreshRate = "off")
         {
-            
+            var display = Environment.GetEnvironmentVariable("DISPLAY");
+            var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
+            var resolution = "";
+
+            if (CommandHelpers.IsCommandAvailable("xrandr") && !string.IsNullOrEmpty(display) && string.IsNullOrEmpty(waylandDisplay))
+            {
+                switch (refreshRate)
+                {
+                    case "on":
+                    {
+                        var output = CommandHelpers.OutputFromCommand("xrandr", "--nograb --current");
+                        MatchCollection matches = Regex.Matches(output, @"[0-9]*\.[0-9]*\*");
+                        resolution = string.Join(", ", matches.Select(m => m.Value + " @ " + m.Value + "Hz"));
+                        yield return resolution;
+                        break;
+                    }
+                    case "off":
+                    {
+                        string output = CommandHelpers.OutputFromCommand("xrandr", "--nograb --current");
+                        string[] parts = output.Split(new string[] { "connected ", " +", "(" }, StringSplitOptions.None);
+                        string[] resolutions = parts.Where(p => p.Contains("x")).ToArray();
+                        resolution = string.Join(", ", resolutions);
+                        resolution = resolution.Replace("primary, ", "");
+                        resolution = resolution.Replace("primary ", "");
+                        yield return resolution;
+                        break;
+                    }
+                }
+                resolution = resolution.Replace("*", "");
+            }
+            else if (CommandHelpers.IsCommandAvailable("xwininfo") && !string.IsNullOrEmpty(display) && string.IsNullOrEmpty(waylandDisplay))
+            {
+                string output = CommandHelpers.OutputFromCommand("xwininfo", "-root");
+                Match widthMatch = Regex.Match(output, @"Width:[\s]+([0-9]+)");
+                Match heightMatch = Regex.Match(output, @"Height:[\s]+([0-9]+)");
+                if (widthMatch.Success && heightMatch.Success)
+                {
+                    string width = widthMatch.Groups[1].Value;
+                    string height = heightMatch.Groups[1].Value;
+                    resolution = width + "x" + height;
+                    yield return resolution;
+                }
+            }
+            else if (CommandHelpers.IsCommandAvailable("xdpyinfo") && !string.IsNullOrEmpty(display) && string.IsNullOrEmpty(waylandDisplay))
+            {
+                string output =  CommandHelpers.OutputFromCommand("xdpyinfo", "");
+                Match resolutionMatch = Regex.Match(output, @"dimensions:[\s]+([0-9]+)x([0-9]+)");
+                if (resolutionMatch.Success)
+                {
+                    string width = resolutionMatch.Groups[1].Value;
+                    string height = resolutionMatch.Groups[2].Value;
+                    resolution = width + "x" + height;
+                    yield return resolution;
+                }
+            }
+            else if(Directory.Exists("/sys/class/drm"))
+            {
+                var directories = Directory.GetDirectories("/sys/class/drm");
+                foreach (string directory in directories)
+                {
+                    var filePath = Path.Combine(directory, "modes");
+                    if (!File.Exists(filePath)) continue;
+                    string singleResolution = File.ReadLines(filePath).FirstOrDefault();
+                    if (!string.IsNullOrEmpty(singleResolution))
+                    {
+                        yield return singleResolution;
+                        //resolution = singleResolution + ", " + resolution;
+                    }
+                }
+            }
         }
     }
 }

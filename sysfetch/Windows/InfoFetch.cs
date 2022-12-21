@@ -74,7 +74,7 @@ namespace sysfetch.Windows
         }
 
         private const string queryCPUs = "SELECT * FROM Win32_Processor";
-        private static IEnumerable<string>? GetCPUs()
+        private static IEnumerable<string?> GetCPUs()
         {
             using var mos_gpu = new ManagementObjectSearcher(queryCPUs); 
             foreach (ManagementObject managementObject in mos_gpu.Get())
