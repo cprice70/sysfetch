@@ -14,7 +14,7 @@ namespace sysfetch_tests
             string result = seconds.GetHumanReadableString();
 
             // Assert
-            Assert.AreEqual("", result);
+            Assert.That(result, Is.EqualTo(""));
         }
 
         [Test]
@@ -27,7 +27,7 @@ namespace sysfetch_tests
             string result = seconds.GetHumanReadableString();
 
             // Assert
-            Assert.AreEqual("1 second", result);
+            Assert.That(result, Is.EqualTo("1 second"));
         }
 
         [Test]
@@ -40,7 +40,7 @@ namespace sysfetch_tests
             string result = seconds.GetHumanReadableString();
 
             // Assert
-            Assert.AreEqual("1 minute", result);
+            Assert.That(result, Is.EqualTo("1 minute"));
         }
 
         [Test]
@@ -53,7 +53,7 @@ namespace sysfetch_tests
             string result = seconds.GetHumanReadableString();
 
             // Assert
-            Assert.AreEqual("1 hour", result);
+            Assert.That(result, Is.EqualTo("1 hour"));
         }
 
         [Test]
@@ -66,7 +66,7 @@ namespace sysfetch_tests
             string result = seconds.GetHumanReadableString();
 
             // Assert
-            Assert.AreEqual("1 day", result);
+            Assert.That(result, Is.EqualTo("1 day"));
         }
 
         [Test]
@@ -79,7 +79,7 @@ namespace sysfetch_tests
             string result = seconds.GetHumanReadableString();
 
             // Assert
-            Assert.AreEqual("2 days", result);
+            Assert.That(result, Is.EqualTo("2 days"));
         }
 
         [Test]
@@ -92,7 +92,7 @@ namespace sysfetch_tests
             string result = seconds.GetHumanReadableString();
 
             // Assert
-            Assert.AreEqual("2 days 3 hours 4 minutes 5 seconds", result);
+            Assert.That(result, Is.EqualTo("2 days 3 hours 4 minutes 5 seconds"));
         }
     }
 }

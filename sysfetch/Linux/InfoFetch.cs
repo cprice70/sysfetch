@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Diagnostics;
+using System.Text.RegularExpressions;
 using sysfetch.Extensions;
 
 namespace sysfetch.Linux
@@ -11,6 +12,7 @@ namespace sysfetch.Linux
 
         public InfoFetch()
         {
+            SysInfo.Kernel = GetDistro("off");
             SysInfo.CPU = GetCPUs();
             SysInfo.Model = GetModel();
             SysInfo.Uptime = GetUptime();
@@ -18,17 +20,80 @@ namespace sysfetch.Linux
             SysInfo.Memory = GetMemory();
         }
 
-        private static IEnumerable<string?> GetCPUs()
+        private static string GetDistro(string distroShorthand)
         {
-            if (!File.Exists(CpuPath)) yield return null;
+            string distro = "";
+            if (CommandHelpers.IsCommandAvailable("lsb_release"))
+            {
+                distro = distroShorthand switch
+                {
+                    "on" => CommandHelpers.OutputFromCommand("lsb_release", "-si"),
+                    "tiny" => CommandHelpers.OutputFromCommand("lsb_release", "-si"),
+                    _ => CommandHelpers.OutputFromCommand("lsb_release", "-sd")
+                };
+            }
+            else if (File.Exists("/etc/os-release") ||
+                     File.Exists("/usr/lib/os-release") ||
+                     File.Exists("/etc/openwrt_release") ||
+                     File.Exists("/etc/lsb-release"))
+            {
+                string[] files =
+                    { "/etc/lsb-release", "/usr/lib/os-release", "/etc/os-release", "/etc/openwrt_release" };
+                foreach (var file in files)
+                {
+                    if (!File.Exists(file)) continue;
+                    string[] lines = File.ReadAllLines(file);
+                    Dictionary<string, string> values =
+                        lines.Select(x => x.Split('=')).ToDictionary(x => x[0], x => x[1]);
 
-            var cpuInfo = File.ReadAllText(CpuPath);
+                    switch (distroShorthand)
+                    {
+                        case "on":
+                            distro = values.ContainsKey("NAME")
+                                ? values["NAME"]
+                                : values["DISTRIB_ID"] + " " + (values.ContainsKey("VERSION_ID")
+                                    ? values["VERSION_ID"]
+                                    : values["DISTRIB_RELEASE"]);
+                            break;
+                        case "tiny":
+                            distro = values.ContainsKey("NAME") ? values["NAME"] : values["DISTRIB_ID"];
+                            if (!values.ContainsKey("NAME"))
+                            {
+                                distro = values.ContainsKey("TAILS_PRODUCT_NAME")
+                                    ? values["TAILS_PRODUCT_NAME"]
+                                    : distro;
+                            }
 
-            var cpu = cpuInfo.GetValue("Model Name");
-            var cores = cpuInfo.GetValue("cpu cores");
-            
-            yield return  $"{cpu} - {cores}";
+                            break;
+                        case "off":
+                            distro = values.ContainsKey("PRETTY_NAME")
+                                ? values["PRETTY_NAME"]
+                                : values["DISTRIB_DESCRIPTION"];
+                            if (values.ContainsKey("UBUNTU_CODENAME"))
+                            {
+                                distro += " " + values["UBUNTU_CODENAME"];
+                            }
+
+                            break;
+                    }
+
+                    break;
+                }
+            }
+            return distro;
         }
+
+        private static IEnumerable<string?> GetCPUs()
+            {
+                if (!File.Exists(CpuPath)) yield return null;
+
+                var cpuInfo = File.ReadAllText(CpuPath);
+
+                var cpu = cpuInfo.GetValue("model name");
+                var cores = cpuInfo.GetValue("cpu cores");
+            
+                yield return  $"{cpu} - {cores}";
+            }
 
         private const string GpuType = "all";
 

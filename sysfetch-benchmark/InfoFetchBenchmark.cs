@@ -1,29 +1,25 @@
 ﻿using BenchmarkDotNet.Attributes;
 using sysfetch.Windows;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace netfetch_benchmark
+namespace sysfetch_benchmark
 {
     [MemoryDiagnoser]
     public class InfoFetchBenchmark
     {
         [Benchmark]
-        public void TestConstruction()
+        public static void TestConstruction()
         {
             var info = new InfoFetch();
         }
 
         [Benchmark]
-        public void TestGpu()
+        public static void TestGpu()
         {
             var info = new InfoFetch();
 
-            foreach ( var gpu in info.SysInfo.GPUs)
-            { 
+            if (info.SysInfo.GPUs == null) return;
+            foreach (var gpu in info.SysInfo.GPUs)
+            {
                 var test = gpu;
             }
         }

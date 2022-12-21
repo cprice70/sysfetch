@@ -4,7 +4,7 @@ namespace sysfetch.Linux
 {
     public class CommandHelpers
     {
-        public static string OutputFromCommand(string command, string arguments)
+        public static string OutputFromCommand(string command, string arguments = "")
         {
             try
             {
@@ -22,6 +22,7 @@ namespace sysfetch.Linux
                 oProc.Start();
 
                 var sResult = oProc.StandardOutput.ReadToEnd();
+                oProc.WaitForExit();
                 return sResult;
             }
             catch (Exception ex)
@@ -33,7 +34,7 @@ namespace sysfetch.Linux
 
         public static bool IsCommandAvailable(string command)
         {
-            return false;
+            return !string.IsNullOrEmpty(CommandHelpers.OutputFromCommand("which", command));
         }
     }
 }
