@@ -427,3 +427,5 @@ FodyWeavers.xsd
 .idea/.idea.netfetch/.idea/
 
 .idea/.idea.sysfetch/.idea/
+
+gitfix.sh
