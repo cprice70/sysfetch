@@ -19,6 +19,7 @@ namespace sysfetch.Linux
             SysInfo.Uptime = GetUptime();
             SysInfo.GPUs = GetGPUs();
             SysInfo.Memory = GetMemory();
+            SysInfo.Resolution = GetResolutions();
         }
 
         private static string GetDistro(string distroShorthand)
@@ -40,46 +41,10 @@ namespace sysfetch.Linux
             {
                 string[] files =
                     { "/etc/lsb-release", "/usr/lib/os-release", "/etc/os-release", "/etc/openwrt_release" };
-                foreach (var file in files)
-                {
-                    if (!File.Exists(file)) continue;
-                    string[] lines = File.ReadAllLines(file);
-                    Dictionary<string, string> values =
-                        lines.Select(x => x.Split('=')).ToDictionary(x => x[0], x => x[1]);
 
-                    switch (distroShorthand)
-                    {
-                        case "on":
-                            distro = values.ContainsKey("NAME")
-                                ? values["NAME"]
-                                : values["DISTRIB_ID"] + " " + (values.ContainsKey("VERSION_ID")
-                                    ? values["VERSION_ID"]
-                                    : values["DISTRIB_RELEASE"]);
-                            break;
-                        case "tiny":
-                            distro = values.ContainsKey("NAME") ? values["NAME"] : values["DISTRIB_ID"];
-                            if (!values.ContainsKey("NAME"))
-                            {
-                                distro = values.ContainsKey("TAILS_PRODUCT_NAME")
-                                    ? values["TAILS_PRODUCT_NAME"]
-                                    : distro;
-                            }
+                string[] fileInfo = files.Select(File.ReadAllText).ToArray();
 
-                            break;
-                        case "off":
-                            distro = values.ContainsKey("PRETTY_NAME")
-                                ? values["PRETTY_NAME"]
-                                : values["DISTRIB_DESCRIPTION"];
-                            if (values.ContainsKey("UBUNTU_CODENAME"))
-                            {
-                                distro += " " + values["UBUNTU_CODENAME"];
-                            }
-
-                            break;
-                    }
-
-                    break;
-                }
+                distro = LinuxHelpers.ParseDistroStrings(fileInfo, "off");
             }
             return distro.RemoveNewlines();
         }
@@ -269,12 +234,18 @@ namespace sysfetch.Linux
                     case "off":
                     {
                         string output = CommandHelpers.OutputFromCommand("xrandr", "--nograb --current");
-                        string[] parts = output.Split(new string[] { "connected ", " +", "(" }, StringSplitOptions.None);
-                        string[] resolutions = parts.Where(p => p.Contains("x")).ToArray();
-                        resolution = string.Join(", ", resolutions);
-                        resolution = resolution.Replace("primary, ", "");
-                        resolution = resolution.Replace("primary ", "");
-                        yield return resolution;
+                        string[] parts = output.Split(new string[] {"\n"}, StringSplitOptions.RemoveEmptyEntries);
+                        string[] resolutions = parts.Where(p => p.Contains(" connected")).ToArray();
+
+                        foreach (var res in resolutions)
+                        {
+                            Regex regex = new Regex(@"\d+x\d+");
+                            Match match = regex.Match(res);
+                            if (match.Success)
+                            {
+                                yield return match.Value;
+                            }
+                        }
                         break;
                     }
                 }

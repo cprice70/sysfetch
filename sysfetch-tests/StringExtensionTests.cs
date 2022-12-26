@@ -50,6 +50,6 @@ public class ExtensionTests
         string output = input.RemoveNewlines();
 
         // Assert
-        Assert.AreEqual(expectedOutput, output);
+        Assert.That(output, Is.EqualTo(expectedOutput));
     }
 }
