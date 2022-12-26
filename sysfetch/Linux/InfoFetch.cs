@@ -12,6 +12,7 @@ namespace sysfetch.Linux
 
         public InfoFetch()
         {
+            SysInfo.OSName = "Linux";
             SysInfo.Kernel = GetDistro("off");
             SysInfo.CPU = GetCPUs();
             SysInfo.Model = GetModel();
@@ -80,7 +81,7 @@ namespace sysfetch.Linux
                     break;
                 }
             }
-            return distro;
+            return distro.RemoveNewlines();
         }
 
         private static IEnumerable<string?> GetCPUs()
@@ -89,82 +90,80 @@ namespace sysfetch.Linux
 
                 var cpuInfo = File.ReadAllText(CpuPath);
 
-                var cpu = cpuInfo.GetValue("model name");
-                var cores = cpuInfo.GetValue("cpu cores");
+                var cpu = cpuInfo.GetValue("model name", ":");
+                var cores = cpuInfo.GetValue("cpu cores", ":");
             
                 yield return  $"{cpu} - {cores}";
             }
 
-        private const string GpuType = "all";
+        //private const string GpuType = "all";
 
-        private static IEnumerable<string> GetGPUs()
+        private static IEnumerable<string> GetGPUs(string gpuType = "all")
         {
-            // Read GPUs into array.
-            var gpuCmd = CommandHelpers.OutputFromCommand("lspci","-mm");
-            var gpu_cmd = string.Join('\n', Regex.Matches(gpuCmd, "\"Display|\"3D|\"VGA").OfType<Match>()
-                .Select(m => m.Value)
-                .Distinct()
-                .Select(m => m.Replace("\"", "").Trim()));
-            var gpus = gpu_cmd.Split('\n').ToList();
-            
-            if (gpus[0].Contains("Intel") && gpus[1].Contains("Intel"))
+             // Read GPUs into array.
+            string gpuOutput = string.Join("\n", CommandHelpers.OutputFromCommand("lspci", "-mm").Split('\n').Where(line => line.Contains("Display") || line.Contains("3D") || line.Contains("VGA")));
+            string[] gpus = gpuOutput.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries).Distinct().ToArray();
+
+            // Remove duplicate Intel Graphics outputs.
+            // This fixes cases where the outputs are both
+            // Intel but not entirely identical.
+            //
+            // Checking the first two array elements should
+            // be safe since there won't be 2 intel outputs if
+            // there's a dedicated GPU in play.
+            if (gpus.Length > 1 && gpus[0].Contains("Intel") && gpus[1].Contains("Intel"))
             {
-                gpus.RemoveAt(0);
+                gpus = gpus.Skip(1).ToArray();
             }
 
-            foreach (var gpu in gpus)
+            foreach (string gpu in gpus)
             {
                 var gputemp = gpu;
                 // GPU shorthand tests.
-                if ((GpuType == "dedicated" && gputemp.Contains("Intel")) ||
-                    (GpuType == "integrated" && !gputemp.Contains("Intel")))
+                if ((gpuType == "dedicated" && gpu.Contains("Intel")) || (gpuType == "integrated" && !gpu.Contains("Intel")))
                 {
-                    gpus.Remove(gputemp);
                     continue;
                 }
 
-                if (gputemp.Contains("Advanced"))
+                string brand = "";
+                if (gpu.Contains("Advanced"))
                 {
-                    var brand = gputemp.Replace("AMD*ATI", "AMD ATI");
-                    brand = (brand.Length > 0) ? brand : gputemp.Replace("AMD", "AMD");
-                    brand = (brand.Length > 0) ? brand : gputemp.Replace("ATI", "ATi");
-
-                    gputemp = gputemp.Replace("[AMD/ATI] ", "");
-                    gputemp = gputemp.Replace("[AMD] ", "");
-                    gputemp = gputemp.Replace("OEM ", "");
-                    gputemp = gputemp.Replace("Advanced Micro Devices, Inc.", "");
-                    gputemp = gputemp.Replace("[", "");
-                    gputemp = gputemp.Replace("]", "");
+                    brand = gpu.Contains("AMD") || gpu.Contains("ATI") ? "AMD ATI" : gpu.Contains("AMD") ? "AMD" : "ATi";
+                    gputemp = Regex.Replace(gputemp, @"\[AMD\/ATI\]|\[AMD\]|OEM|Advanced Micro Devices, Inc.", "");
+                    gputemp = Regex.Replace(gputemp, @"\[|\]", "");
                     gputemp = brand + " " + gputemp;
                 }
-                else if (gputemp.Contains("NVIDIA"))
+                else if (gpu.Contains("Intel") || gpu.Contains("NVIDIA"))
                 {
-                    gputemp = gputemp.Replace("[", "");
-                    gputemp = gputemp.Replace("]", "");
-                    gputemp = "NVIDIA " + gputemp;
-                }
-                else if (gputemp.Contains("Intel"))
-                {
-                    gputemp = gputemp.Replace("Intel", "Intel");
-                    gputemp = gputemp.Replace("(R)", "");
-                    gputemp = gputemp.Replace("Corporation", "");
-                    gputemp = gputemp.Replace(" (", "");
-                    gputemp = gputemp.Replace("Integrated Graphics Controller", "");
-                    gputemp = gputemp.Replace("Xeon", "Intel HD Graphics");
+                    string pattern = "\"[^\"]*\"";
+                    MatchCollection matches = Regex.Matches(gputemp, pattern);
+                    gputemp = matches[matches.Count - 1].Value.Trim('"');
 
-                    if (gputemp.Trim().Length == 0)
+                    if (gpu.Contains("NVIDIA"))
                     {
-                        gputemp = "Intel Integrated Graphics";
+                        string pattern2 = @"\[(.*?)\]";
+                        Match match = Regex.Match(gputemp, pattern2);
+                        gputemp = match.Value.Trim('[', ']');
                     }
+                    
                 }
                 else if (gputemp.Contains("MCST"))
                 {
-                    gputemp = gputemp.Replace("MCST*MGA2", "MCST MGA2");
+                    gputemp = "MCST MGA2";
                 }
                 else if (gputemp.Contains("VirtualBox"))
                 {
                     gputemp = "VirtualBox Graphics Adapter";
                 }
+                else if (gpuType == "off")
+                {
+                    gputemp = Regex.Replace(gputemp, "AMD|NVIDIA|Intel", "");
+                }
+                else
+                {
+                    continue;
+                }
+                
                 yield return gputemp;
             }
         }
@@ -179,6 +178,7 @@ namespace sysfetch.Linux
             {
                 var result = File.ReadAllText("/sys/devices/virtual/dmi/id/board_vendor");
                 result += " " + File.ReadAllText("/sys/devices/virtual/dmi/id/board_name");
+                result = result.RemoveNewlines();
                 return result;
             }
             else if (File.Exists("/sys/devices/virtual/dmi/id/product_name") || File.Exists("/sys/devices/virtual/dmi/id/product_version"))

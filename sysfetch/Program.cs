@@ -15,7 +15,7 @@ if (info is null)
 }
 
 Console.WriteLine($"OS: {info.SysInfo.OSName}");
-Console.WriteLine($"Host: {info.SysInfo.Host}");
+Console.WriteLine($"Host: {info.SysInfo.Model}");
 Console.WriteLine($"Kernel: {info.SysInfo.Kernel}");
 Console.WriteLine($"Uptime: {info.SysInfo.Uptime}");
 

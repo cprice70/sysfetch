@@ -38,4 +38,18 @@ public class ExtensionTests
         // Assert
         Assert.That(actual_value, Is.EqualTo(result));
     }
+
+    [Test]
+    public void RemoveNewLines_RemovesAllNewLineCharacters()
+    {
+        // Arrange
+        string input = "This is a\r\n string with\n new lines.";
+        string expectedOutput = "This is a string with new lines.";
+
+        // Act
+        string output = input.RemoveNewlines();
+
+        // Assert
+        Assert.AreEqual(expectedOutput, output);
+    }
 }

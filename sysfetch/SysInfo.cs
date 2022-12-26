@@ -10,7 +10,7 @@ public class SysInfo
     
     public string Uptime { get; set; } = string.Empty;
     
-    public IEnumerable<string>? CPU { get; set; } = null;
+    public IEnumerable<string?>? CPU { get; set; } = null;
     
     public IEnumerable<string>? GPUs { get; set; } = null;
 

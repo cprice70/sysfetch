@@ -14,5 +14,10 @@ namespace sysfetch.Extensions
             
             return match.Success ? match.Groups[1].Value : values[0][(values[0].LastIndexOf(separator) + 1)..].Trim();
         }
+
+        public static string RemoveNewlines(this string str)
+        {
+            return str.Replace("\r\n", string.Empty).Replace("\n", string.Empty).Replace("\r", string.Empty);
+        }
     }
 }
