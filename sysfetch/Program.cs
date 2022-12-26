@@ -27,6 +27,7 @@ if (info.SysInfo.Resolution is not null)
             Console.WriteLine($"Resolution: {resolution}");
     }
 }
+
 if (info.SysInfo.CPU is not null)
 {
     foreach ( var cpu in info.SysInfo.CPU)

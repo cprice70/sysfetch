@@ -143,9 +143,12 @@ namespace sysfetch.Linux
                     {
                         string pattern2 = @"\[(.*?)\]";
                         Match match = Regex.Match(gputemp, pattern2);
-                        gputemp = match.Value.Trim('[', ']');
+                        gputemp = "NVIDIA " + match.Value.Trim('[', ']');
                     }
-                    
+                    else if (gpu.Contains("Intel"))
+                    {
+                        gputemp = "Intel " + gputemp;
+                    }
                 }
                 else if (gputemp.Contains("MCST"))
                 {
@@ -309,11 +312,10 @@ namespace sysfetch.Linux
                 {
                     var filePath = Path.Combine(directory, "modes");
                     if (!File.Exists(filePath)) continue;
-                    string singleResolution = File.ReadLines(filePath).FirstOrDefault();
+                    string? singleResolution = File.ReadLines(filePath).FirstOrDefault();
                     if (!string.IsNullOrEmpty(singleResolution))
                     {
                         yield return singleResolution;
-                        //resolution = singleResolution + ", " + resolution;
                     }
                 }
             }
