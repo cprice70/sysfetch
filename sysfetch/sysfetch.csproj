@@ -5,7 +5,7 @@
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <SelfContained>false</SelfContained>
+    <SelfContained>true</SelfContained>
     <CollectCoverage>true</CollectCoverage>
   </PropertyGroup>
 

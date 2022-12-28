@@ -20,7 +20,7 @@ public class OutputFromCommandTests
         Assert.That(result, Is.InstanceOf<string>());
     }
     
-    [Test, Ignore("WIP")]
+    [Test, Platform("Win")]
     public void TestOutputFromCommand()
     {
         // Arrange
@@ -34,5 +34,15 @@ public class OutputFromCommandTests
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.InstanceOf<string>());
         Assert.That(result, Does.Contain("Directory:"));
+    }
+
+    [Test, Platform("Linux")]
+    public void TestOutputFromCommandLinux()
+    {
+        const string command = "uname";
+
+        var result = CommandHelpers.OutputFromCommand(command, "");
+        
+        Assert.That(result, Does.Contain("Linux"));
     }
 }
