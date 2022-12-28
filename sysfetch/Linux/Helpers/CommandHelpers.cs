@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace sysfetch.Linux
+namespace sysfetch.Linux.Helpers
 {
     public class CommandHelpers
     {

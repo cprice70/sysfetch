@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text.RegularExpressions;
 using sysfetch.Extensions;
+using sysfetch.Linux.Helpers;
 
 namespace sysfetch.Linux
 {
@@ -66,74 +67,10 @@ namespace sysfetch.Linux
         private static IEnumerable<string> GetGPUs(string gpuType = "all")
         {
              // Read GPUs into array.
-            string gpuOutput = string.Join("\n", CommandHelpers.OutputFromCommand("lspci", "-mm").Split('\n').Where(line => line.Contains("Display") || line.Contains("3D") || line.Contains("VGA")));
-            string[] gpus = gpuOutput.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries).Distinct().ToArray();
-
-            // Remove duplicate Intel Graphics outputs.
-            // This fixes cases where the outputs are both
-            // Intel but not entirely identical.
-            //
-            // Checking the first two array elements should
-            // be safe since there won't be 2 intel outputs if
-            // there's a dedicated GPU in play.
-            if (gpus.Length > 1 && gpus[0].Contains("Intel") && gpus[1].Contains("Intel"))
-            {
-                gpus = gpus.Skip(1).ToArray();
-            }
-
-            foreach (string gpu in gpus)
-            {
-                var gputemp = gpu;
-                // GPU shorthand tests.
-                if ((gpuType == "dedicated" && gpu.Contains("Intel")) || (gpuType == "integrated" && !gpu.Contains("Intel")))
-                {
-                    continue;
-                }
-
-                string brand = "";
-                if (gpu.Contains("Advanced"))
-                {
-                    brand = gpu.Contains("AMD") || gpu.Contains("ATI") ? "AMD ATI" : gpu.Contains("AMD") ? "AMD" : "ATi";
-                    gputemp = Regex.Replace(gputemp, @"\[AMD\/ATI\]|\[AMD\]|OEM|Advanced Micro Devices, Inc.", "");
-                    gputemp = Regex.Replace(gputemp, @"\[|\]", "");
-                    gputemp = brand + " " + gputemp;
-                }
-                else if (gpu.Contains("Intel") || gpu.Contains("NVIDIA"))
-                {
-                    string pattern = "\"[^\"]*\"";
-                    MatchCollection matches = Regex.Matches(gputemp, pattern);
-                    gputemp = matches[matches.Count - 1].Value.Trim('"');
-
-                    if (gpu.Contains("NVIDIA"))
-                    {
-                        string pattern2 = @"\[(.*?)\]";
-                        Match match = Regex.Match(gputemp, pattern2);
-                        gputemp = "NVIDIA " + match.Value.Trim('[', ']');
-                    }
-                    else if (gpu.Contains("Intel"))
-                    {
-                        gputemp = "Intel " + gputemp;
-                    }
-                }
-                else if (gputemp.Contains("MCST"))
-                {
-                    gputemp = "MCST MGA2";
-                }
-                else if (gputemp.Contains("VirtualBox"))
-                {
-                    gputemp = "VirtualBox Graphics Adapter";
-                }
-                else if (gpuType == "off")
-                {
-                    gputemp = Regex.Replace(gputemp, "AMD|NVIDIA|Intel", "");
-                }
-                else
-                {
-                    continue;
-                }
-                
-                yield return gputemp;
-            }
+            var gpuOutput = CommandHelpers.OutputFromCommand("lspci", "-mm");
+            var gpus = LinuxHelpers.ParseDeviceString(gpuOutput);
+            
+            return LinuxHelpers.ParseGPUStrings(gpus.ToArray(), gpuType);
         }
 
         private static string GetModel()
@@ -142,30 +79,29 @@ namespace sysfetch.Linux
             {
                 return Environment.GetEnvironmentVariable("ro.product.brand") + " " + Environment.GetEnvironmentVariable("ro.product.model");
             }
-            else if (File.Exists("/sys/devices/virtual/dmi/id/board_vendor") || File.Exists("/sys/devices/virtual/dmi/id/board_name"))
+
+            if (File.Exists("/sys/devices/virtual/dmi/id/board_vendor") || File.Exists("/sys/devices/virtual/dmi/id/board_name"))
             {
                 var result = File.ReadAllText("/sys/devices/virtual/dmi/id/board_vendor");
                 result += " " + File.ReadAllText("/sys/devices/virtual/dmi/id/board_name");
                 result = result.RemoveNewlines();
                 return result;
             }
-            else if (File.Exists("/sys/devices/virtual/dmi/id/product_name") || File.Exists("/sys/devices/virtual/dmi/id/product_version"))
+
+            if (File.Exists("/sys/devices/virtual/dmi/id/product_name") || File.Exists("/sys/devices/virtual/dmi/id/product_version"))
             {
                 
                 var result = File.ReadAllText("/sys/devices/virtual/dmi/id/product_name");
                 result += " " + File.ReadAllText("/sys/devices/virtual/dmi/id/product_version");
                 return result;
             }
-            else if (File.Exists("/sys/firmware/devicetree/base/model"))
+
+            if (File.Exists("/sys/firmware/devicetree/base/model"))
             {
                 return File.ReadAllText("/sys/firmware/devicetree/base/model");
             }
-            else if (File.Exists("/tmp/sysinfo/model"))
-            {
-                return File.ReadAllText("/tmp/sysinfo/model");
-            }
 
-            return string.Empty;
+            return File.Exists("/tmp/sysinfo/model") ? File.ReadAllText("/tmp/sysinfo/model") : string.Empty;
         }
 
         private string _uptime = string.Empty;
