@@ -14,5 +14,4 @@ public class MacHelpers
 
         return distro;
     }
-
 }

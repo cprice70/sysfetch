@@ -7,6 +7,8 @@ if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     info = new sysfetch.Windows.InfoFetch();
 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
     info = new sysfetch.Linux.InfoFetch();
+else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+    info = new sysfetch.MacOS.InfoFetch();
 
 if (info is null)
 {

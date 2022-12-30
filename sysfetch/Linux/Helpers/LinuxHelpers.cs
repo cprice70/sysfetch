@@ -5,7 +5,7 @@ using sysfetch.Extensions;
 
 namespace sysfetch.Linux.Helpers
 {
-    public class LinuxHelpers
+    public partial class LinuxHelpers
     {
         public static string ParseDistroStrings(string[] fileInfo, string distroShorthand)
         {
@@ -73,7 +73,7 @@ namespace sysfetch.Linux.Helpers
                 {
                     var gpuTemp = gpu;
                     // GPU shorthand tests.
-                    if ((gpuType == "dedicated" && gpu.Contains("Intel")) || (gpuType == "integrated" && !gpu.Contains("Intel")))
+                    if (gpuType == "dedicated" && gpu.Contains("Intel") || gpuType == "integrated" && !gpu.Contains("Intel"))
                     {
                         continue;
                     }
@@ -91,7 +91,7 @@ namespace sysfetch.Linux.Helpers
                     else if (gpu.Contains("Intel") || gpu.Contains("NVIDIA"))
                     {
                         const string pattern = "\"[^\"]*\"";
-                        MatchCollection matches = Regex.Matches(gpuTemp, pattern);
+                        MatchCollection matches = MyRegex().Matches(gpuTemp);
                         if (matches.Count < 1) continue;
                         
                         gpuTemp = matches[^1].Value.Trim('"');
@@ -182,5 +182,8 @@ namespace sysfetch.Linux.Helpers
             
             return fields.Values;
         }
+
+        [GeneratedRegex("\"[^\"]*\"")]
+        private static partial Regex MyRegex();
     }
 }

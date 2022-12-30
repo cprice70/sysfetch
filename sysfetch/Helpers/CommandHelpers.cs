@@ -34,7 +34,7 @@ namespace sysfetch.Helpers
 
         public static bool IsCommandAvailable(string command)
         {
-            return !string.IsNullOrEmpty(CommandHelpers.OutputFromCommand("which", command));
+            return !string.IsNullOrEmpty(OutputFromCommand("which", command));
         }
     }
 }

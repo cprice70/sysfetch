@@ -51,19 +51,17 @@ namespace sysfetch.Linux
         }
 
         private static IEnumerable<string?> GetCPUs()
-            {
-                if (!File.Exists(CpuPath)) yield return null;
+        {
+            if (!File.Exists(CpuPath)) yield return null;
 
-                var cpuInfo = File.ReadAllText(CpuPath);
+            var cpuInfo = File.ReadAllText(CpuPath);
 
-                var cpu = cpuInfo.GetValue("model name", ":");
-                var cores = cpuInfo.GetValue("cpu cores", ":");
-            
-                yield return  $"{cpu} - {cores}";
-            }
+            var cpu = cpuInfo.GetValue("model name", ":");
+            var cores = cpuInfo.GetValue("cpu cores", ":");
 
-        //private const string GpuType = "all";
-
+            yield return $"{cpu} - {cores}";
+        }
+        
         private static IEnumerable<string> GetGPUs(string gpuType = "all")
         {
              // Read GPUs into array.

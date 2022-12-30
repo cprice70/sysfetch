@@ -1,4 +1,5 @@
 using System.Collections;
+using sysfetch.Helpers;
 using sysfetch.Linux;
 using sysfetch.Linux.Helpers;
 
@@ -173,4 +174,19 @@ public class LinuxHelperTests
         Assert.That(result, Does.Contain(correctValue));
     }
 
+    [Test, Platform("Linux")]
+    public void TestIsCommandAvailable_True()
+    {
+        var result = CommandHelpers.IsCommandAvailable("ls");
+        
+        Assert.That(result, Is.True);
+    }
+    
+    [Test, Platform("Linux")]
+    public void TestIsCommandAvailable_False()
+    {
+        var result = CommandHelpers.IsCommandAvailable("__");
+        
+        Assert.That(result, Is.False);
+    }
 }
