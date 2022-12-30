@@ -11,7 +11,22 @@ namespace sysfetch.Windows
         
         public InfoFetch()
         {
-            #region ComputerSystem
+
+            SysInfo.Model = GetModel();
+            var info = GetOSInfo();
+            SysInfo.OSName = info.os;
+            SysInfo.Kernel = info.kernel;
+            _lastBootTime = info.lastBootTime;
+            
+            SysInfo.Uptime = GetUptime(_lastBootTime);
+            SysInfo.CPU = GetCPUs();
+            SysInfo.Resolution = GetResolutionList();
+            SysInfo.GPUs = GetGPUs();
+            SysInfo.Memory = GetMemory();
+        }
+
+        private static string? GetModel()
+        {
             ManagementClass mc = new ManagementClass("Win32_ComputerSystem");
 
             using ManagementObjectCollection moc = mc.GetInstances();
@@ -20,41 +35,39 @@ namespace sysfetch.Windows
                 foreach (ManagementObject mo in mc.GetInstances())
                 {
                     // display general system information
-                    SysInfo.Host = $"{mo["Manufacturer"]} {mo["Model"]}";
-                    break;
+                    return $"{mo["Manufacturer"]} {mo["Model"]}";
                 }
             }
-            #endregion
 
-            #region OperatingSystem
+            return null;
+        }
+
+        private static (string os, string kernel, string lastBootTime) GetOSInfo()
+        {
             using var mos = new ManagementObjectSearcher(queryOS);
-
+            string osName = string.Empty, kernel = string.Empty, lastBootTime = string.Empty;
+            
             foreach (ManagementObject managementObject in mos.Get())
             {
                 if (managementObject["Caption"] != null)
-                    SysInfo.OSName = managementObject["Caption"].ToString();
+                    osName = managementObject["Caption"].ToString();
 
                 if (managementObject["Version"] != null)
-                    SysInfo.Kernel = managementObject["Version"].ToString();
+                    kernel = managementObject["Version"].ToString();
 
                 if (managementObject["LastBootUpTime"] != null)
                 {
                     var boot = managementObject["LastBootUpTime"];
-                    _lastBootTime = boot.ToString();
+                    lastBootTime = boot.ToString();
                 }
             }
-            #endregion
 
-            SysInfo.Uptime = GetUptime();
-            SysInfo.CPU = GetCPUs();
-            SysInfo.Resolution = GetResolutionList();
-            SysInfo.GPUs = GetGPUs();
-            SysInfo.Memory = GetMemory();
+            return (osName, kernel, lastBootTime);
         }
         
-        private string GetUptime()
+        public static string GetUptime(string lastBootTime)
         {
-            var bootTime = ManagementDateTimeConverter.ToDateTime(_lastBootTime);
+            var bootTime = ManagementDateTimeConverter.ToDateTime(lastBootTime);
 
             return (DateTime.Now - bootTime).ToString();
         }
@@ -63,7 +76,7 @@ namespace sysfetch.Windows
         {
             var mc2 = new ManagementClass("Win32_DesktopMonitor");
             
-            using ManagementObjectCollection moc2 = mc2.GetInstances();
+            using var moc2 = mc2.GetInstances();
             if (moc2.Count == 0) yield break;
             foreach (ManagementObject mo in mc2.GetInstances())
             {

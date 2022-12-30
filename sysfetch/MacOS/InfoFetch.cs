@@ -3,6 +3,8 @@ using System.Xml.Linq;
 using sysfetch.Extensions;
 using sysfetch.Linux.Helpers;
 using sysfetch.MacOS.Helpers;
+using sysfetch.Helpers;
+using sysfetch.Linux.Helpers;
 
 namespace sysfetch.MacOS;
 
