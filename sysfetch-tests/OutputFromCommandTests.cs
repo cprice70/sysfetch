@@ -1,4 +1,5 @@
-﻿using sysfetch.Linux;
+﻿using sysfetch.Helpers;
+using sysfetch.Linux;
 using sysfetch.Linux.Helpers;
 
 namespace sysfetch_tests;

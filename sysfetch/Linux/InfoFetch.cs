@@ -1,6 +1,6 @@
-﻿using System.Diagnostics;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using sysfetch.Extensions;
+using sysfetch.Helpers;
 using sysfetch.Linux.Helpers;
 
 namespace sysfetch.Linux
