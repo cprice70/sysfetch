@@ -13,14 +13,24 @@ namespace sysfetch.Linux
 
         public InfoFetch()
         {
-            SysInfo.OSName = "Linux";
-            SysInfo.Kernel = GetDistro("off");
+            SysInfo.OSName = GetDistro("off");;
+            SysInfo.Kernel = GetKernel();
             SysInfo.CPU = GetCPUs();
             SysInfo.Model = GetModel();
             SysInfo.Uptime = GetUptime();
             SysInfo.GPUs = GetGPUs();
             SysInfo.Memory = GetMemory();
             SysInfo.Resolution = GetResolutions();
+        }
+
+        private static string GetKernel()
+        {
+            var unameString = CommandHelpers.OutputFromCommand("uname", "-srm");
+            var uname = unameString.Split(' ');
+            var kernel_name = $"{uname[0]}";
+            var kernel_version = $"{uname[1]}";
+            var kernel_machine = $"{uname[2]}";
+            return kernel_version;
         }
 
         private static string GetDistro(string distroShorthand)
@@ -147,7 +157,7 @@ namespace sysfetch.Linux
             return $"{memUsed} MB / {memTotal} MB";
         }
 
-        private IEnumerable<string> GetResolutions(string refreshRate = "off")
+        private static IEnumerable<string> GetResolutions(string refreshRate = "off")
         {
             var display = Environment.GetEnvironmentVariable("DISPLAY");
             var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
@@ -167,9 +177,9 @@ namespace sysfetch.Linux
                     }
                     case "off":
                     {
-                        string output = CommandHelpers.OutputFromCommand("xrandr", "--nograb --current");
-                        string[] parts = output.Split(new string[] {"\n"}, StringSplitOptions.RemoveEmptyEntries);
-                        string[] resolutions = parts.Where(p => p.Contains(" connected")).ToArray();
+                        var output = CommandHelpers.OutputFromCommand("xrandr", "--nograb --current");
+                        var parts = output.Split(new string[] {"\n"}, StringSplitOptions.RemoveEmptyEntries);
+                        var resolutions = parts.Where(p => p.Contains(" connected")).ToArray();
 
                         foreach (var res in resolutions)
                         {
@@ -187,7 +197,7 @@ namespace sysfetch.Linux
             }
             else if (CommandHelpers.IsCommandAvailable("xwininfo") && !string.IsNullOrEmpty(display) && string.IsNullOrEmpty(waylandDisplay))
             {
-                string output = CommandHelpers.OutputFromCommand("xwininfo", "-root");
+                var output = CommandHelpers.OutputFromCommand("xwininfo", "-root");
                 Match widthMatch = Regex.Match(output, @"Width:[\s]+([0-9]+)");
                 Match heightMatch = Regex.Match(output, @"Height:[\s]+([0-9]+)");
                 if (widthMatch.Success && heightMatch.Success)
@@ -200,7 +210,7 @@ namespace sysfetch.Linux
             }
             else if (CommandHelpers.IsCommandAvailable("xdpyinfo") && !string.IsNullOrEmpty(display) && string.IsNullOrEmpty(waylandDisplay))
             {
-                string output =  CommandHelpers.OutputFromCommand("xdpyinfo", "");
+                var output =  CommandHelpers.OutputFromCommand("xdpyinfo", "");
                 Match resolutionMatch = Regex.Match(output, @"dimensions:[\s]+([0-9]+)x([0-9]+)");
                 if (resolutionMatch.Success)
                 {
@@ -213,11 +223,11 @@ namespace sysfetch.Linux
             else if(Directory.Exists("/sys/class/drm"))
             {
                 var directories = Directory.GetDirectories("/sys/class/drm");
-                foreach (string directory in directories)
+                foreach (var directory in directories)
                 {
                     var filePath = Path.Combine(directory, "modes");
                     if (!File.Exists(filePath)) continue;
-                    string? singleResolution = File.ReadLines(filePath).FirstOrDefault();
+                    var singleResolution = File.ReadLines(filePath).FirstOrDefault();
                     if (!string.IsNullOrEmpty(singleResolution))
                     {
                         yield return singleResolution;
