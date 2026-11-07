@@ -35,7 +35,9 @@ public class LinuxHardwareTests
 
     private void AddPciDevice(string slot, string cls, string vendor, string device)
     {
-        var dir = Directory.CreateDirectory(Path.Combine(_root, "pci", slot)).FullName;
+        // Real sysfs slot names contain ':', which Windows paths cannot; the parser only
+        // cares about the files inside, so swap it for fixtures.
+        var dir = Directory.CreateDirectory(Path.Combine(_root, "pci", slot.Replace(':', '_'))).FullName;
         File.WriteAllText(Path.Combine(dir, "class"), cls + "\n");
         File.WriteAllText(Path.Combine(dir, "vendor"), vendor + "\n");
         File.WriteAllText(Path.Combine(dir, "device"), device + "\n");
