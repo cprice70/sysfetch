@@ -2,6 +2,7 @@
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 using sysfetch.Extensions;
+using sysfetch.Helpers;
 
 namespace sysfetch.Windows
 {
@@ -15,16 +16,28 @@ namespace sysfetch.Windows
         private const string CpuKey = @"HARDWARE\DESCRIPTION\System\CentralProcessor\0";
         private const string DisplayClassKey = @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
 
-        public InfoFetch()
+        public InfoFetch() : this(Probe.DefaultTimeout) { }
+
+        public InfoFetch(TimeSpan timeout)
         {
-            SysInfo.Host = GetModel();
-            SysInfo.OSName = GetOSName();
-            SysInfo.Kernel = GetKernel();
+            var host = Probe.Start(GetModel);
+            var os = Probe.Start(GetOSName);
+            var kernel = Probe.Start(GetKernel);
+            var cpu = Probe.Start(() => GetCPUs().ToList());
+            var resolutions = Probe.Start(() => GetResolutions().ToList());
+            var gpus = Probe.Start(() => GetGPUs().ToList());
+            var memory = Probe.Start(GetMemory);
+
+            Probe.WaitAll(timeout, host, os, kernel, cpu, resolutions, gpus, memory);
+
+            SysInfo.Host = Probe.Result(host, string.Empty);
+            SysInfo.OSName = Probe.Result(os, string.Empty);
+            SysInfo.Kernel = Probe.Result(kernel, string.Empty);
             SysInfo.Uptime = ((int)(Environment.TickCount64 / 1000)).GetHumanReadableString();
-            SysInfo.CPU = GetCPUs();
-            SysInfo.Resolution = GetResolutions();
-            SysInfo.GPUs = GetGPUs();
-            SysInfo.Memory = GetMemory();
+            SysInfo.CPU = Probe.Result(cpu, []);
+            SysInfo.Resolution = Probe.Result(resolutions, []);
+            SysInfo.GPUs = Probe.Result(gpus, []);
+            SysInfo.Memory = Probe.Result(memory, string.Empty);
         }
 
         private static string? ReadString(string key, string name) =>

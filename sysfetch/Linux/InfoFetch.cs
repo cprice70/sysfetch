@@ -11,16 +11,29 @@ namespace sysfetch.Linux
 
         private const string CpuPath = "/proc/cpuinfo";
 
-        public InfoFetch()
+        public InfoFetch() : this(Probe.DefaultTimeout) { }
+
+        public InfoFetch(TimeSpan timeout)
         {
-            SysInfo.OSName = GetDistro("off");
-            SysInfo.Kernel = GetKernel();
-            SysInfo.CPU = GetCPUs();
-            SysInfo.Host = GetModel();
-            SysInfo.Uptime = GetUptime();
-            SysInfo.GPUs = GetGPUs();
-            SysInfo.Memory = GetMemory();
-            SysInfo.Resolution = GetResolutions();
+            var os = Probe.Start(() => GetDistro("off"));
+            var kernel = Probe.Start(GetKernel);
+            var cpu = Probe.Start(() => GetCPUs().ToList());
+            var host = Probe.Start(GetModel);
+            var uptime = Probe.Start(GetUptime);
+            var gpus = Probe.Start(() => GetGPUs().ToList());
+            var memory = Probe.Start(GetMemory);
+            var resolutions = Probe.Start(() => GetResolutions().ToList());
+
+            Probe.WaitAll(timeout, os, kernel, cpu, host, uptime, gpus, memory, resolutions);
+
+            SysInfo.OSName = Probe.Result(os, string.Empty);
+            SysInfo.Kernel = Probe.Result(kernel, string.Empty);
+            SysInfo.CPU = Probe.Result(cpu, []);
+            SysInfo.Host = Probe.Result(host, string.Empty);
+            SysInfo.Uptime = Probe.Result(uptime, string.Empty);
+            SysInfo.GPUs = Probe.Result(gpus, []);
+            SysInfo.Memory = Probe.Result(memory, string.Empty);
+            SysInfo.Resolution = Probe.Result(resolutions, []);
         }
 
         private static string GetKernel()
@@ -65,23 +78,22 @@ namespace sysfetch.Linux
 
         private static IEnumerable<string?> GetCPUs()
         {
-            if (!File.Exists(CpuPath)) yield break;
+            var name = LinuxHardware.ParseCpuName(ReadFile(CpuPath));
+            if (string.IsNullOrEmpty(name)) yield break;
 
-            var cpuInfo = File.ReadAllText(CpuPath);
-
-            var cpu = cpuInfo.GetValue("model name", ":");
-            var cores = cpuInfo.GetValue("cpu cores", ":");
-
-            yield return string.IsNullOrEmpty(cores) ? cpu : $"{cpu} ({cores})";
+            yield return $"{name} ({Environment.ProcessorCount})";
         }
-        
+
         private static IEnumerable<string> GetGPUs(string gpuType = "all")
         {
-             // Read GPUs into array.
+            var gpus = LinuxHardware.GetGpusFromSysfs();
+            if (gpus.Count > 0) return gpus;
+
+            // Fallback for systems without readable sysfs PCI entries.
+            if (!CommandHelpers.IsCommandAvailable("lspci")) return [];
             var gpuOutput = CommandHelpers.OutputFromCommand("lspci", "-mm");
-            var gpus = LinuxHelpers.ParseDeviceString(gpuOutput);
-            
-            return LinuxHelpers.ParseGPUStrings(gpus.ToArray(), gpuType);
+            var devices = LinuxHelpers.ParseDeviceString(gpuOutput);
+            return LinuxHelpers.ParseGPUStrings(devices.ToArray(), gpuType);
         }
 
         private static string GetModel()
@@ -125,6 +137,13 @@ namespace sysfetch.Linux
             var display = Environment.GetEnvironmentVariable("DISPLAY");
             var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
             var resolution = "";
+
+            var drmModes = LinuxHardware.GetResolutionsFromDrm();
+            if (drmModes.Count > 0)
+            {
+                foreach (var mode in drmModes) yield return mode;
+                yield break;
+            }
 
             if (CommandHelpers.IsCommandAvailable("xrandr") && !string.IsNullOrEmpty(display) && string.IsNullOrEmpty(waylandDisplay))
             {
@@ -181,20 +200,6 @@ namespace sysfetch.Linux
                     string height = resolutionMatch.Groups[2].Value;
                     resolution = width + "x" + height;
                     yield return resolution;
-                }
-            }
-            else if(Directory.Exists("/sys/class/drm"))
-            {
-                var directories = Directory.GetDirectories("/sys/class/drm");
-                foreach (var directory in directories)
-                {
-                    var filePath = Path.Combine(directory, "modes");
-                    if (!File.Exists(filePath)) continue;
-                    var singleResolution = File.ReadLines(filePath).FirstOrDefault();
-                    if (!string.IsNullOrEmpty(singleResolution))
-                    {
-                        yield return singleResolution;
-                    }
                 }
             }
         }

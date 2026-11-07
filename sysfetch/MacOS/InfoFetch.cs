@@ -1,5 +1,4 @@
 using System.Runtime.Versioning;
-using System.Text.Json;
 using sysfetch.Extensions;
 using sysfetch.Helpers;
 using sysfetch.MacOS.Helpers;
@@ -11,18 +10,29 @@ public class InfoFetch : IInfoFetch
 {
     public SysInfo SysInfo { get; } = new();
 
-    public InfoFetch()
-    {
-        SysInfo.OSName = GetDistro("off");
-        SysInfo.Kernel = GetKernel();
-        SysInfo.CPU = GetCPUs("on");
-        SysInfo.Host = Native.GetString("hw.model") ?? string.Empty;
-        SysInfo.Uptime = GetUptime();
-        SysInfo.Memory = GetMemory();
+    public InfoFetch() : this(Probe.DefaultTimeout) { }
 
-        var (gpus, resolutions) = GetDisplayInfo();
-        SysInfo.GPUs = gpus;
-        SysInfo.Resolution = resolutions;
+    public InfoFetch(TimeSpan timeout)
+    {
+        var os = Probe.Start(() => GetDistro("off"));
+        var kernel = Probe.Start(GetKernel);
+        var cpu = Probe.Start(() => GetCPUs("on").ToList());
+        var host = Probe.Start(() => Native.GetString("hw.model") ?? string.Empty);
+        var uptime = Probe.Start(GetUptime);
+        var memory = Probe.Start(GetMemory);
+        var gpus = Probe.Start(Graphics.GetGpus);
+        var resolutions = Probe.Start(Graphics.GetResolutions);
+
+        Probe.WaitAll(timeout, os, kernel, cpu, host, uptime, memory, gpus, resolutions);
+
+        SysInfo.OSName = Probe.Result(os, null);
+        SysInfo.Kernel = Probe.Result(kernel, string.Empty);
+        SysInfo.CPU = Probe.Result(cpu, []);
+        SysInfo.Host = Probe.Result(host, string.Empty);
+        SysInfo.Uptime = Probe.Result(uptime, string.Empty);
+        SysInfo.Memory = Probe.Result(memory, string.Empty);
+        SysInfo.GPUs = Probe.Result(gpus, []);
+        SysInfo.Resolution = Probe.Result(resolutions, []);
     }
 
     private static string? GetDistro(string distroShorthand)
@@ -74,11 +84,5 @@ public class InfoFetch : IInfoFetch
         var usedBytes = (appPages + s.WireCount + s.CompressorPageCount) * pageSize.Value;
 
         return $"{usedBytes / 1024 / 1024} MiB / {total.Value / 1024 / 1024} MiB";
-    }
-
-    private static (List<string> gpus, List<string> resolutions) GetDisplayInfo()
-    {
-        var output = CommandHelpers.OutputFromCommand("system_profiler", "-json SPDisplaysDataType");
-        return MacHelpers.ParseDisplays(output);
     }
 }
