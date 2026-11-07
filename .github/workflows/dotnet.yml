@@ -57,3 +57,13 @@ jobs:
         cat sysfetch.json
         python3 -c "import json,sys; d=json.load(open('sysfetch.json')); assert d['os'], 'os missing'; assert d['kernel'], 'kernel missing'" \
           || python -c "import json,sys; d=json.load(open('sysfetch.json')); assert d['os'], 'os missing'; assert d['kernel'], 'kernel missing'"
+
+    - name: Upload binary
+      uses: actions/upload-artifact@v7
+      with:
+        name: sysfetch-${{ runner.os }}-${{ runner.arch }}
+        path: |
+          out/sysfetch
+          out/sysfetch.exe
+        if-no-files-found: error
+        retention-days: 14

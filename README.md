@@ -48,6 +48,11 @@ If the `HOMEBREW_TAP_TOKEN` secret is set (a token with write access to
 as a workflow artifact. Tags containing `-` (e.g. `v0.5.0-rc.1`) are marked as
 pre-releases and skip the tap update.
 
+To try the release build without publishing, run the `Release` workflow manually from the
+Actions tab (or `gh workflow run release.yml -f version=0.4.0-test`). It builds and packages
+all six targets and keeps the archives as workflow artifacts; the release and tap jobs are
+skipped. Every CI run also uploads the Native AOT binary for each OS as an artifact.
+
 ## Usage
 
 ```
