@@ -16,7 +16,10 @@ namespace sysfetch.Linux.Helpers
                 if (string.IsNullOrWhiteSpace(info)) continue;
                 var lines = info.Split('\n', StringSplitOptions.RemoveEmptyEntries);
                 var values =
-                    lines.Select(x => x.Split('=')).ToDictionary(x => x[0], x => x[1]);
+                    lines.Select(x => x.Split('=', 2))
+                        .Where(x => x.Length == 2)
+                        .GroupBy(x => x[0].Trim())
+                        .ToDictionary(g => g.Key, g => g.First()[1].Trim());
                 switch (distroShorthand)
                 {
                     case "on":
@@ -50,6 +53,36 @@ namespace sysfetch.Linux.Helpers
                 break;
             }
             return distro;
+        }
+
+        /// <summary>
+        /// Computes used/total memory from /proc/meminfo contents, in MiB.
+        /// Prefers MemAvailable (kernel 3.14+); falls back to the screenFetch formula:
+        /// used = MemTotal + Shmem - MemFree - Buffers - Cached - SReclaimable.
+        /// </summary>
+        public static string ParseMemInfo(string memInfo)
+        {
+            long Read(string key)
+            {
+                foreach (var line in memInfo.Split('\n'))
+                {
+                    if (!line.StartsWith(key + ":", StringComparison.Ordinal)) continue;
+                    var digits = new string(line.AsSpan(key.Length + 1).ToArray().Where(char.IsDigit).ToArray());
+                    return long.TryParse(digits, out var v) ? v : 0;
+                }
+                return -1;
+            }
+
+            var memTotal = Read("MemTotal");
+            if (memTotal <= 0) return string.Empty;
+
+            var memAvailable = Read("MemAvailable");
+            long memUsed = memAvailable >= 0
+                ? memTotal - memAvailable
+                : memTotal + Math.Max(0, Read("Shmem")) - Math.Max(0, Read("MemFree")) - Math.Max(0, Read("Buffers"))
+                  - Math.Max(0, Read("Cached")) - Math.Max(0, Read("SReclaimable"));
+
+            return $"{memUsed / 1024} MiB / {memTotal / 1024} MiB";
         }
 
         // Remove duplicate Intel Graphics outputs.
@@ -90,7 +123,6 @@ namespace sysfetch.Linux.Helpers
                     }
                     else if (gpu.Contains("Intel") || gpu.Contains("NVIDIA"))
                     {
-                        const string pattern = "\"[^\"]*\"";
                         MatchCollection matches = MyRegex().Matches(gpuTemp);
                         if (matches.Count < 1) continue;
                         

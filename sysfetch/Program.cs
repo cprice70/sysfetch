@@ -1,13 +1,12 @@
-﻿using sysfetch;
-using System.Runtime.InteropServices;
+using sysfetch;
 
 IInfoFetch? info = null;
 
-if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+if (OperatingSystem.IsWindows())
     info = new sysfetch.Windows.InfoFetch();
-else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+else if (OperatingSystem.IsLinux())
     info = new sysfetch.Linux.InfoFetch();
-else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+else if (OperatingSystem.IsMacOS())
     info = new sysfetch.MacOS.InfoFetch();
 
 if (info is null)
@@ -17,7 +16,7 @@ if (info is null)
 }
 
 Console.WriteLine($"OS: {info.SysInfo.OSName}");
-Console.WriteLine($"Host: {info.SysInfo.Model}");
+Console.WriteLine($"Host: {info.SysInfo.Host}");
 Console.WriteLine($"Kernel: {info.SysInfo.Kernel}");
 Console.WriteLine($"Uptime: {info.SysInfo.Uptime}");
 
