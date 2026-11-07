@@ -90,3 +90,7 @@ Run `sysfetch --gen-config` to write a commented default config to
               "dotnet", "node", "python", "android", "git", "blank", "colors"]
 }
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
