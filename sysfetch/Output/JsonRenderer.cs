@@ -25,6 +25,27 @@ public static class JsonRenderer
             WriteArray(writer, "gpus", info.GPUs);
             WriteArray(writer, "resolutions", info.Resolution);
             WriteNullable(writer, "memory", info.Memory);
+
+            var dev = info.Dev;
+            writer.WriteStartObject("dev");
+            writer.WriteStartObject("dotnet");
+            WriteNullable(writer, "sdk", dev.DotnetSdk);
+            writer.WriteNumber("sdkCount", dev.DotnetSdkCount);
+            writer.WriteEndObject();
+            WriteNullable(writer, "node", dev.Node);
+            writer.WriteStartObject("python");
+            WriteNullable(writer, "version", dev.Python);
+            WriteNullable(writer, "source", dev.PythonSource);
+            writer.WriteEndObject();
+            writer.WriteStartObject("android");
+            WriteNullable(writer, "api", dev.AndroidApi);
+            WriteNullable(writer, "buildTools", dev.AndroidBuildTools);
+            writer.WriteEndObject();
+            writer.WriteStartObject("git");
+            WriteNullable(writer, "repo", dev.GitRepo);
+            WriteNullable(writer, "branch", dev.GitBranch);
+            writer.WriteEndObject();
+            writer.WriteEndObject();
             writer.WriteEndObject();
         }
 

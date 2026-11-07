@@ -9,7 +9,8 @@ namespace sysfetch.Config;
 public sealed class Settings
 {
     public static readonly string[] DefaultModules =
-        ["title", "underline", "os", "host", "kernel", "uptime", "resolution", "cpu", "gpu", "memory", "blank", "colors"];
+        ["title", "underline", "os", "host", "kernel", "uptime", "resolution", "cpu", "gpu", "memory",
+         "dotnet", "node", "python", "android", "git", "blank", "colors"];
 
     /// <summary>"auto", "none", or a logo name (apple, windows, linux, arch, ubuntu, debian, fedora).</summary>
     public string Logo { get; set; } = "auto";
@@ -131,6 +132,7 @@ public sealed class Settings
     {
         var sb = new StringBuilder();
         sb.Append("{\n");
+        sb.Append("  // modules also accept: dotnet, node, python, android, git\n");
         sb.Append("  // auto, none, apple, windows, linux, arch, ubuntu, debian, fedora\n");
         sb.Append("  \"logo\": \"auto\",\n");
         sb.Append("  // auto, always, never (auto respects NO_COLOR and pipes)\n");

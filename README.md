@@ -11,6 +11,9 @@ It is not intended to be a full replacement for neofetch or fastfetch.
   instead of spawning helper commands.
 * Probes run in parallel under a shared timeout, so one slow source can't stall the output.
 * Distro logos with ANSI colors (respects `NO_COLOR` and plain output when piped).
+* Developer environment lines: .NET SDK, Node, Python (venv/pyenv aware), Android SDK
+  and the current git repo/branch. Versions are read from install layouts on disk, so
+  they cost almost nothing; a `--version` call is only a fallback.
 * `--json` output for scripts.
 * Optional JSON config file for logo, colors, separator and which lines to show.
 
@@ -54,6 +57,7 @@ Run `sysfetch --gen-config` to write a commented default config to
   "separator": ": ",
   "timeoutMs": 1000,
   "modules": ["title", "underline", "os", "host", "kernel", "uptime",
-              "resolution", "cpu", "gpu", "memory", "blank", "colors"]
+              "resolution", "cpu", "gpu", "memory",
+              "dotnet", "node", "python", "android", "git", "blank", "colors"]
 }
 ```

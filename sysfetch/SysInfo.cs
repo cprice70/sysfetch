@@ -23,4 +23,6 @@ public class SysInfo
     public IEnumerable<string>? Resolution { get; set; } = null;
 
     public string Memory { get; set; } = string.Empty;
+
+    public DevEnv.DevInfo Dev { get; set; } = new();
 }

@@ -1,6 +1,7 @@
 using System.Reflection;
 using sysfetch;
 using sysfetch.Config;
+using sysfetch.DevEnv;
 using sysfetch.Output;
 
 var cli = CommandLine.Parse(args);
@@ -57,6 +58,12 @@ if (cli.Color is not null && !settings.SetColorMode(cli.Color, warnings))
 foreach (var warning in warnings) Console.Error.WriteLine($"sysfetch: {warning}");
 
 var timeout = TimeSpan.FromMilliseconds(settings.TimeoutMs);
+
+// JSON always includes the dev section; text output only probes enabled modules.
+var devModules = settings.Json ? DevEnvironment.Modules : settings.Modules.Intersect(DevEnvironment.Modules, StringComparer.OrdinalIgnoreCase).ToArray();
+var devTask = devModules.Length > 0
+    ? Task.Run(() => DevEnvironment.Collect(devModules, timeout, Environment.CurrentDirectory))
+    : Task.FromResult(new DevInfo());
 IInfoFetch? info = null;
 if (OperatingSystem.IsWindows())
     info = new sysfetch.Windows.InfoFetch(timeout);
@@ -70,6 +77,8 @@ if (info is null)
     Console.Error.WriteLine("sysfetch: platform is not supported");
     return 1;
 }
+
+info.SysInfo.Dev = devTask.Wait(timeout) && devTask.IsCompletedSuccessfully ? devTask.Result : new DevInfo();
 
 var user = Environment.UserName;
 var hostName = Environment.MachineName;

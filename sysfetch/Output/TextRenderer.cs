@@ -6,7 +6,8 @@ namespace sysfetch.Output;
 public static class TextRenderer
 {
     public static readonly string[] KnownModules =
-        ["title", "underline", "os", "host", "kernel", "uptime", "resolution", "cpu", "gpu", "memory", "blank", "colors"];
+        ["title", "underline", "os", "host", "kernel", "uptime", "resolution", "cpu", "gpu", "memory",
+         "dotnet", "node", "python", "android", "git", "blank", "colors"];
 
     public static string Render(SysInfo info, Settings settings, bool useColor, string user, string hostName)
     {
@@ -62,6 +63,11 @@ public static class TextRenderer
                 case "cpu": AddAll("CPU", info.CPU); break;
                 case "gpu": AddAll("GPU", info.GPUs); break;
                 case "memory": Add("Memory", info.Memory); break;
+                case "dotnet": Add(".NET", info.Dev.FormatDotnet()); break;
+                case "node": Add("Node", info.Dev.Node); break;
+                case "python": Add("Python", info.Dev.FormatPython()); break;
+                case "android": Add("Android", info.Dev.FormatAndroid()); break;
+                case "git": Add("Git", info.Dev.FormatGit()); break;
                 case "blank": lines.Add(string.Empty); break;
                 case "colors":
                     if (useColor) lines.AddRange(ColorBlocks());
