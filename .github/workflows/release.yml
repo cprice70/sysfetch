@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest,    rid: linux-x64,   smoke: true }
+          - { os: ubuntu-24.04,    rid: linux-x64,   smoke: true }
           - { os: ubuntu-24.04-arm, rid: linux-arm64, smoke: true }
           - { os: macos-latest,     rid: osx-arm64,   smoke: true }
           - { os: macos-latest,     rid: osx-x64,     smoke: false } # cross-compiled
@@ -28,10 +28,10 @@ jobs:
         shell: bash
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: 10.0.x
 
@@ -54,7 +54,7 @@ jobs:
     - name: Package
       run: scripts/package.sh "$VERSION" "${{ matrix.rid }}" out dist
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: dist-${{ matrix.rid }}
         path: dist/*
@@ -63,14 +63,14 @@ jobs:
   release:
     name: GitHub Release
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v8
       with:
         pattern: dist-*
         merge-multiple: true
@@ -91,15 +91,15 @@ jobs:
     name: Update Homebrew tap
     needs: release
     if: ${{ !contains(github.ref_name, '-') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       TAP_REPO: ${{ github.repository_owner }}/homebrew-sysfetch
       HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v8
       with:
         pattern: dist-*
         merge-multiple: true
@@ -112,7 +112,7 @@ jobs:
         cat formula/sysfetch.rb
 
     - name: Keep formula as artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: homebrew-formula
         path: formula/sysfetch.rb
@@ -123,7 +123,7 @@ jobs:
 
     - name: Check out tap
       if: env.HAS_TAP_TOKEN == 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: ${{ env.TAP_REPO }}
         token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
