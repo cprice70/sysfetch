@@ -1,7 +1,4 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
-name: .NET
+name: CI
 
 on:
   push:
@@ -9,20 +6,54 @@ on:
   pull_request:
     branches: [ "master" ]
 
-jobs:
-  build:
+permissions:
+  contents: read
 
-    runs-on: ubuntu-latest
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
-    - name: Restore dependencies
+
+    - name: Install Native AOT prerequisites
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+    - name: Restore
       run: dotnet restore
+
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore -c Release
+
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build -c Release --verbosity normal
+
+    - name: Publish Native AOT
+      run: dotnet publish sysfetch -c Release -o out
+
+    - name: Smoke test
+      run: |
+        ./out/sysfetch --version
+        ./out/sysfetch --no-color --no-config
+        ./out/sysfetch --json --no-config > sysfetch.json
+        cat sysfetch.json
+        python3 -c "import json,sys; d=json.load(open('sysfetch.json')); assert d['os'], 'os missing'; assert d['kernel'], 'kernel missing'" \
+          || python -c "import json,sys; d=json.load(open('sysfetch.json')); assert d['os'], 'os missing'; assert d['kernel'], 'kernel missing'"

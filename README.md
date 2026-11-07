@@ -17,12 +17,36 @@ It is not intended to be a full replacement for neofetch or fastfetch.
 * `--json` output for scripts.
 * Optional JSON config file for logo, colors, separator and which lines to show.
 
+## Install
+
+Homebrew (macOS and Linux):
+
+```bash
+brew install cprice70/sysfetch/sysfetch
+```
+
+Or download the archive for your platform from
+[Releases](https://github.com/cprice70/sysfetch/releases): `osx-arm64`, `osx-x64`,
+`linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`. Each archive has a single
+self-contained binary; `SHA256SUMS` lists the checksums.
+
 ## Build
+
+Requires the .NET 10 SDK (plus `clang` and `zlib1g-dev` on Linux for Native AOT).
 
 ```bash
 dotnet publish sysfetch -c Release -o out
 ./out/sysfetch
 ```
+
+## Releasing
+
+Push a tag such as `v0.4.0`. The `Release` workflow builds Native AOT binaries for all six
+targets, publishes a GitHub Release with checksums, and renders the Homebrew formula.
+If the `HOMEBREW_TAP_TOKEN` secret is set (a token with write access to
+`cprice70/homebrew-sysfetch`), the formula is pushed to the tap; otherwise it is kept
+as a workflow artifact. Tags containing `-` (e.g. `v0.5.0-rc.1`) are marked as
+pre-releases and skip the tap update.
 
 ## Usage
 
