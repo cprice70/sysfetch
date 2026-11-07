@@ -25,8 +25,9 @@ public class OutputFromCommandTests
     public void TestOutputFromCommand()
     {
         // Arrange
-        const string command = "dir";
-        const string arguments = "C:\\";
+        // "dir" is a cmd.exe builtin, not an executable.
+        const string command = "cmd.exe";
+        const string arguments = "/c dir C:\\";
 
         // Act
         var result = CommandHelpers.OutputFromCommand(command, arguments);
@@ -34,7 +35,7 @@ public class OutputFromCommandTests
         // Assert
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.InstanceOf<string>());
-        Assert.That(result, Does.Contain("Directory:"));
+        Assert.That(result, Does.Contain("Directory of"));
     }
 
     [Test, Platform("Linux")]

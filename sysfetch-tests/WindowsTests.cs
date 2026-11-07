@@ -1,33 +1,25 @@
-using System.Management;
+using sysfetch.Windows;
 
 namespace sysfetch_tests;
 
-[TestFixture, Platform("Win")]
 public class WindowsTests
 {
-    [Test]
-    public void GetUptime_ReturnsCorrectUptime()
+    [TestCase("Windows 10 Pro", "22H2", 19045, "Windows 10 Pro 22H2")]
+    [TestCase("Windows 10 Pro", "24H2", 26100, "Windows 11 Pro 24H2")]
+    [TestCase("Windows 10 Home", null, 22000, "Windows 11 Home")]
+    [TestCase("Windows Server 2022 Standard", "21H2", 20348, "Windows Server 2022 Standard 21H2")]
+    public void FormatOSName_HandlesWindows11ProductName(string product, string? displayVersion, int build, string expected)
     {
-        // Arrange
-        var lastBootTime = ManagementDateTimeConverter.ToDateTime("2022-12-28T12:00:00");
-
-        // Act
-        var uptime = sysfetch.Windows.InfoFetch.GetUptime(lastBootTime.ToString());
-
-        // Assert
-        Assert.AreEqual("12:00:00", uptime);
+        Assert.That(WindowsHelpers.FormatOSName(product, displayVersion, build), Is.EqualTo(expected));
     }
 
-    [Test]
-    public void GetUptime_HandlesNullInput()
+    [TestCase("NVIDIA GeForce RTX 4080", true)]
+    [TestCase("Microsoft Basic Display Adapter", false)]
+    [TestCase("Microsoft Remote Display Adapter", false)]
+    [TestCase("", false)]
+    [TestCase(null, false)]
+    public void IsRealGpu_FiltersVirtualAdapters(string? desc, bool expected)
     {
-        // Arrange
-        string lastBootTime = null;
-
-        // Act
-        var uptime = sysfetch.Windows.InfoFetch.GetUptime(lastBootTime);
-
-        // Assert
-        Assert.AreEqual("0:00:00", uptime);
+        Assert.That(WindowsHelpers.IsRealGpu(desc), Is.EqualTo(expected));
     }
 }

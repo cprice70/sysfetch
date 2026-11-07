@@ -189,4 +189,36 @@ public class LinuxHelperTests
         
         Assert.That(result, Is.False);
     }
+
+    [Test]
+    public void ParseMemInfo_UsesMemAvailable()
+    {
+        const string memInfo = "MemTotal:       16384000 kB\nMemFree:         1024000 kB\nMemAvailable:    8192000 kB\nBuffers:          100000 kB\n";
+
+        Assert.That(LinuxHelpers.ParseMemInfo(memInfo), Is.EqualTo("8000 MiB / 16000 MiB"));
+    }
+
+    [Test]
+    public void ParseMemInfo_FallsBackWithoutMemAvailable()
+    {
+        // used = 16000000 + 100000 - 4000000 - 1000000 - 2000000 - 100000 = 9000000 kB
+        const string memInfo = "MemTotal: 16000000 kB\nMemFree: 4000000 kB\nBuffers: 1000000 kB\nCached: 2000000 kB\n" +
+                               "SwapCached: 5 kB\nShmem: 100000 kB\nSReclaimable: 100000 kB\n";
+
+        Assert.That(LinuxHelpers.ParseMemInfo(memInfo), Is.EqualTo($"{9000000 / 1024} MiB / {16000000 / 1024} MiB"));
+    }
+
+    [Test]
+    public void ParseMemInfo_EmptyInput()
+    {
+        Assert.That(LinuxHelpers.ParseMemInfo(string.Empty), Is.Empty);
+    }
+
+    [Test]
+    public void ParseDistroStrings_HandlesValuesWithEqualsAndBlankLines()
+    {
+        var fileInfo = new[] { "PRETTY_NAME=\"Fedora Linux 41 (Workstation Edition)\"\n\nNAME=Fedora\nHOME_URL=https://x.org/?a=b\n# comment\n" };
+
+        Assert.That(LinuxHelpers.ParseDistroStrings(fileInfo, "off"), Is.EqualTo("Fedora Linux 41 (Workstation Edition)"));
+    }
 }

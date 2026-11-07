@@ -1,0 +1,146 @@
+name: Release
+
+# Push a tag like v0.4.0 to build Native AOT binaries for every platform,
+# publish a GitHub Release, and (for non-prerelease tags) update the Homebrew tap.
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.rid }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04,    rid: linux-x64,   smoke: true }
+          - { os: ubuntu-24.04-arm, rid: linux-arm64, smoke: true }
+          - { os: macos-latest,     rid: osx-arm64,   smoke: true }
+          - { os: macos-latest,     rid: osx-x64,     smoke: false } # cross-compiled
+          - { os: windows-latest,   rid: win-x64,     smoke: true }
+          - { os: windows-latest,   rid: win-arm64,   smoke: false } # cross-compiled
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Install Native AOT prerequisites
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+    - name: Resolve version
+      run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+    - name: Publish
+      run: dotnet publish sysfetch -c Release -r "${{ matrix.rid }}" -p:Version="$VERSION" -o out
+
+    - name: Smoke test
+      if: matrix.smoke
+      run: |
+        ./out/sysfetch --version | grep -F "$VERSION"
+        ./out/sysfetch --json --no-config
+
+    - name: Package
+      run: scripts/package.sh "$VERSION" "${{ matrix.rid }}" out dist
+
+    - uses: actions/upload-artifact@v7
+      with:
+        name: dist-${{ matrix.rid }}
+        path: dist/*
+        if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/download-artifact@v8
+      with:
+        pattern: dist-*
+        merge-multiple: true
+        path: dist
+
+    - name: Combined checksums
+      run: cd dist && cat *.sha256 > SHA256SUMS && cat SHA256SUMS
+
+    - name: Create release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        args=(--title "sysfetch ${GITHUB_REF_NAME#v}" --generate-notes --verify-tag)
+        if [[ "$GITHUB_REF_NAME" == *-* ]]; then args+=(--prerelease); fi
+        gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.zip dist/SHA256SUMS "${args[@]}"
+
+  homebrew:
+    name: Update Homebrew tap
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-24.04
+    env:
+      TAP_REPO: ${{ github.repository_owner }}/homebrew-sysfetch
+      HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/download-artifact@v8
+      with:
+        pattern: dist-*
+        merge-multiple: true
+        path: dist
+
+    - name: Render formula
+      run: |
+        mkdir -p formula
+        scripts/render-formula.sh "${GITHUB_REF_NAME#v}" dist "$GITHUB_REPOSITORY" > formula/sysfetch.rb
+        cat formula/sysfetch.rb
+
+    - name: Keep formula as artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: homebrew-formula
+        path: formula/sysfetch.rb
+
+    - name: Skip notice
+      if: env.HAS_TAP_TOKEN != 'true'
+      run: echo "::notice::HOMEBREW_TAP_TOKEN is not set; formula rendered but tap not updated."
+
+    - name: Check out tap
+      if: env.HAS_TAP_TOKEN == 'true'
+      uses: actions/checkout@v7
+      with:
+        repository: ${{ env.TAP_REPO }}
+        token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        path: tap
+
+    - name: Push formula
+      if: env.HAS_TAP_TOKEN == 'true'
+      run: |
+        mkdir -p tap/Formula
+        cp formula/sysfetch.rb tap/Formula/sysfetch.rb
+        cd tap
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add Formula/sysfetch.rb
+        if git diff --cached --quiet; then
+          echo "Formula unchanged."
+        else
+          git commit -m "sysfetch ${GITHUB_REF_NAME#v}"
+          git push
+        fi

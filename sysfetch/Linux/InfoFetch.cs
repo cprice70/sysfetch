@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using sysfetch.Extensions;
 using sysfetch.Helpers;
 using sysfetch.Linux.Helpers;
@@ -11,150 +11,134 @@ namespace sysfetch.Linux
 
         private const string CpuPath = "/proc/cpuinfo";
 
-        public InfoFetch()
+        public InfoFetch() : this(Probe.DefaultTimeout) { }
+
+        public InfoFetch(TimeSpan timeout)
         {
-            SysInfo.OSName = GetDistro("off");;
-            SysInfo.Kernel = GetKernel();
-            SysInfo.CPU = GetCPUs();
-            SysInfo.Model = GetModel();
-            SysInfo.Uptime = GetUptime();
-            SysInfo.GPUs = GetGPUs();
-            SysInfo.Memory = GetMemory();
-            SysInfo.Resolution = GetResolutions();
+            var os = Probe.Start(() => GetDistro("off"));
+            var osId = Probe.Start(GetOsId);
+            var kernel = Probe.Start(GetKernel);
+            var cpu = Probe.Start(() => GetCPUs().ToList());
+            var host = Probe.Start(GetModel);
+            var uptime = Probe.Start(GetUptime);
+            var gpus = Probe.Start(() => GetGPUs().ToList());
+            var memory = Probe.Start(GetMemory);
+            var resolutions = Probe.Start(() => GetResolutions().ToList());
+
+            Probe.WaitAll(timeout, os, osId, kernel, cpu, host, uptime, gpus, memory, resolutions);
+
+            SysInfo.OSName = Probe.Result(os, string.Empty);
+            (SysInfo.OSId, SysInfo.OSIdLike) = Probe.Result(osId, ("linux", (IReadOnlyList<string>)[]));
+            SysInfo.Kernel = Probe.Result(kernel, string.Empty);
+            SysInfo.CPU = Probe.Result(cpu, []);
+            SysInfo.Host = Probe.Result(host, string.Empty);
+            SysInfo.Uptime = Probe.Result(uptime, string.Empty);
+            SysInfo.GPUs = Probe.Result(gpus, []);
+            SysInfo.Memory = Probe.Result(memory, string.Empty);
+            SysInfo.Resolution = Probe.Result(resolutions, []);
         }
 
         private static string GetKernel()
         {
-            var unameString = CommandHelpers.OutputFromCommand("uname", "-srm");
-            var uname = unameString.Split(' ');
-            var kernel_name = $"{uname[0]}";
-            var kernel_version = $"{uname[1]}";
-            var kernel_machine = $"{uname[2]}";
-            return kernel_version;
+            var release = ReadFile("/proc/sys/kernel/osrelease");
+            if (!string.IsNullOrEmpty(release)) return release;
+
+            var uname = CommandHelpers.OutputFromCommand("uname", "-r").Trim();
+            return uname;
+        }
+
+        private static string ReadFile(string path)
+        {
+            try
+            {
+                return File.Exists(path) ? File.ReadAllText(path).Trim('\0', ' ', '\n', '\r', '\t') : string.Empty;
+            }
+            catch (Exception)
+            {
+                return string.Empty;
+            }
+        }
+
+        private static (string id, IReadOnlyList<string> like) GetOsId()
+        {
+            var osRelease = ReadFile("/etc/os-release");
+            if (string.IsNullOrEmpty(osRelease)) osRelease = ReadFile("/usr/lib/os-release");
+            return LinuxHelpers.ParseOsReleaseId(osRelease);
         }
 
         private static string GetDistro(string distroShorthand)
         {
-            string distro = "";
-            if (CommandHelpers.IsCommandAvailable("lsb_release"))
+            string[] files = { "/etc/os-release", "/usr/lib/os-release", "/etc/lsb-release", "/etc/openwrt_release" };
+            var fileInfo = files.Select(ReadFile).Where(f => !string.IsNullOrEmpty(f)).ToArray();
+
+            var distro = fileInfo.Length > 0 ? LinuxHelpers.ParseDistroStrings(fileInfo, distroShorthand) : string.Empty;
+
+            if (string.IsNullOrEmpty(distro) && CommandHelpers.IsCommandAvailable("lsb_release"))
             {
                 distro = distroShorthand switch
                 {
-                    "on" => CommandHelpers.OutputFromCommand("lsb_release", "-si"),
-                    "tiny" => CommandHelpers.OutputFromCommand("lsb_release", "-si"),
+                    "on" or "tiny" => CommandHelpers.OutputFromCommand("lsb_release", "-si"),
                     _ => CommandHelpers.OutputFromCommand("lsb_release", "-sd")
                 };
             }
-            else if (File.Exists("/etc/os-release") ||
-                     File.Exists("/usr/lib/os-release") ||
-                     File.Exists("/etc/openwrt_release") ||
-                     File.Exists("/etc/lsb-release"))
-            {
-                string[] files =
-                    { "/etc/lsb-release", "/usr/lib/os-release", "/etc/os-release", "/etc/openwrt_release" };
 
-                string[] fileInfo = files.Select(File.ReadAllText).ToArray();
-
-                distro = LinuxHelpers.ParseDistroStrings(fileInfo, "off");
-            }
-            return distro.RemoveNewlines();
+            return distro.RemoveNewlines().Replace("\"", string.Empty);
         }
 
         private static IEnumerable<string?> GetCPUs()
         {
-            if (!File.Exists(CpuPath)) yield return null;
+            var name = LinuxHardware.ParseCpuName(ReadFile(CpuPath));
+            if (string.IsNullOrEmpty(name)) yield break;
 
-            var cpuInfo = File.ReadAllText(CpuPath);
-
-            var cpu = cpuInfo.GetValue("model name", ":");
-            var cores = cpuInfo.GetValue("cpu cores", ":");
-
-            yield return $"{cpu} - {cores}";
+            yield return $"{name} ({Environment.ProcessorCount})";
         }
-        
+
         private static IEnumerable<string> GetGPUs(string gpuType = "all")
         {
-             // Read GPUs into array.
+            var gpus = LinuxHardware.GetGpusFromSysfs();
+            if (gpus.Count > 0) return gpus;
+
+            // Fallback for systems without readable sysfs PCI entries.
+            if (!CommandHelpers.IsCommandAvailable("lspci")) return [];
             var gpuOutput = CommandHelpers.OutputFromCommand("lspci", "-mm");
-            var gpus = LinuxHelpers.ParseDeviceString(gpuOutput);
-            
-            return LinuxHelpers.ParseGPUStrings(gpus.ToArray(), gpuType);
+            var devices = LinuxHelpers.ParseDeviceString(gpuOutput);
+            return LinuxHelpers.ParseGPUStrings(devices.ToArray(), gpuType);
         }
 
         private static string GetModel()
         {
-            if (Directory.Exists("/system/app/") && Directory.Exists("/system/priv-app"))
-            {
-                return Environment.GetEnvironmentVariable("ro.product.brand") + " " + Environment.GetEnvironmentVariable("ro.product.model");
-            }
+            const string dmi = "/sys/devices/virtual/dmi/id/";
 
-            if (File.Exists("/sys/devices/virtual/dmi/id/board_vendor") || File.Exists("/sys/devices/virtual/dmi/id/board_name"))
-            {
-                var result = File.ReadAllText("/sys/devices/virtual/dmi/id/board_vendor");
-                result += " " + File.ReadAllText("/sys/devices/virtual/dmi/id/board_name");
-                result = result.RemoveNewlines();
-                return result;
-            }
+            var product = $"{ReadFile(dmi + "product_name")} {ReadFile(dmi + "product_version")}".Trim();
+            if (!string.IsNullOrEmpty(product) && !product.Contains("To be filled", StringComparison.OrdinalIgnoreCase))
+                return product;
 
-            if (File.Exists("/sys/devices/virtual/dmi/id/product_name") || File.Exists("/sys/devices/virtual/dmi/id/product_version"))
-            {
-                
-                var result = File.ReadAllText("/sys/devices/virtual/dmi/id/product_name");
-                result += " " + File.ReadAllText("/sys/devices/virtual/dmi/id/product_version");
-                return result;
-            }
+            var board = $"{ReadFile(dmi + "board_vendor")} {ReadFile(dmi + "board_name")}".Trim();
+            if (!string.IsNullOrEmpty(board)) return board;
 
-            if (File.Exists("/sys/firmware/devicetree/base/model"))
-            {
-                return File.ReadAllText("/sys/firmware/devicetree/base/model");
-            }
+            var deviceTree = ReadFile("/sys/firmware/devicetree/base/model");
+            if (!string.IsNullOrEmpty(deviceTree)) return deviceTree;
 
-            return File.Exists("/tmp/sysinfo/model") ? File.ReadAllText("/tmp/sysinfo/model") : string.Empty;
+            return ReadFile("/tmp/sysinfo/model");
         }
 
-        private string _uptime = string.Empty;
-        private string GetUptime()
+        private static string GetUptime()
         {
-            if (File.Exists("/proc/uptime"))
-            {
-                _uptime = File.ReadAllText("/proc/uptime");
-                _uptime = _uptime.Split('.')[0];
-                return Convert.ToInt32(_uptime).GetHumanReadableString();
-            }
+            var uptime = ReadFile("/proc/uptime");
+            var seconds = uptime.Split(' ', '.')[0];
+            if (int.TryParse(seconds, out var value))
+                return value.GetHumanReadableString();
 
-            var bootTime = DateTime.Parse(System.Diagnostics.Process.Start("uptime -s").StandardOutput.ReadToEnd().Trim());
-            var now = DateTime.Now;
-            return Convert.ToInt32((now - bootTime).TotalSeconds).GetHumanReadableString();
+            // Fallback: monotonic time since boot (excludes time spent suspended).
+            return ((int)(Environment.TickCount64 / 1000)).GetHumanReadableString();
         }
 
         private static string GetMemory()
         {
-            var memUsed = 0;
-            
-            // MemUsed = Memtotal + Shmem - MemFree - Buffers - Cached - SReclaimable
-            // Source: https://github.com/KittyKatt/screenFetch/issues/386#issuecomment-249312716
-            var memInfo = File.ReadAllText("/proc/meminfo");
-            memInfo = memInfo.Replace("kB", "");
-            
-            var memTotal = Convert.ToInt32(memInfo.GetValue("MemTotal", ":"));
-            var shMem = Convert.ToInt32(memInfo.GetValue("Shmem", ":"));
-            var memFree = Convert.ToInt32(memInfo.GetValue("MemFree", ":"));
-            var buffers = Convert.ToInt32(memInfo.GetValue("Buffers", ":"));
-            var cached = Convert.ToInt32(memInfo.GetValue("Cached", ":"));
-            var sReclaimable = Convert.ToInt32(memInfo.GetValue("SReclaimable", ":"));
+            var memInfo = ReadFile("/proc/meminfo");
+            if (string.IsNullOrEmpty(memInfo)) return string.Empty;
 
-            if (!memInfo.Contains("MemAvailable"))
-            {
-                memUsed = Convert.ToInt32(memInfo.GetValue("MemAvailable", ":"));
-                memUsed /= 1024;
-            }
-            else
-            {
-                memUsed = memTotal + shMem - memFree - buffers - cached - sReclaimable;
-                memUsed /= 1024;
-            }
-
-            return $"{memUsed} MB / {memTotal} MB";
+            return LinuxHelpers.ParseMemInfo(memInfo);
         }
 
         private static IEnumerable<string> GetResolutions(string refreshRate = "off")
@@ -162,6 +146,13 @@ namespace sysfetch.Linux
             var display = Environment.GetEnvironmentVariable("DISPLAY");
             var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
             var resolution = "";
+
+            var drmModes = LinuxHardware.GetResolutionsFromDrm();
+            if (drmModes.Count > 0)
+            {
+                foreach (var mode in drmModes) yield return mode;
+                yield break;
+            }
 
             if (CommandHelpers.IsCommandAvailable("xrandr") && !string.IsNullOrEmpty(display) && string.IsNullOrEmpty(waylandDisplay))
             {
@@ -218,20 +209,6 @@ namespace sysfetch.Linux
                     string height = resolutionMatch.Groups[2].Value;
                     resolution = width + "x" + height;
                     yield return resolution;
-                }
-            }
-            else if(Directory.Exists("/sys/class/drm"))
-            {
-                var directories = Directory.GetDirectories("/sys/class/drm");
-                foreach (var directory in directories)
-                {
-                    var filePath = Path.Combine(directory, "modes");
-                    if (!File.Exists(filePath)) continue;
-                    var singleResolution = File.ReadLines(filePath).FirstOrDefault();
-                    if (!string.IsNullOrEmpty(singleResolution))
-                    {
-                        yield return singleResolution;
-                    }
                 }
             }
         }

@@ -1,131 +1,185 @@
-﻿using System.Management;
+﻿using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+using Microsoft.Win32;
+using sysfetch.Extensions;
+using sysfetch.Helpers;
 
 namespace sysfetch.Windows
 {
-    public class InfoFetch : IInfoFetch
+    [SupportedOSPlatform("windows")]
+    public partial class InfoFetch : IInfoFetch
     {
-        private string? _lastBootTime = string.Empty;
-        private const string FMT = "O";
-        private const string queryOS = "SELECT * FROM Win32_OperatingSystem";
         public SysInfo SysInfo { get; } = new();
-        
-        public InfoFetch()
-        {
 
-            SysInfo.Model = GetModel();
-            var info = GetOSInfo();
-            SysInfo.OSName = info.os;
-            SysInfo.Kernel = info.kernel;
-            _lastBootTime = info.lastBootTime;
-            
-            SysInfo.Uptime = GetUptime(_lastBootTime);
-            SysInfo.CPU = GetCPUs();
-            SysInfo.Resolution = GetResolutionList();
-            SysInfo.GPUs = GetGPUs();
-            SysInfo.Memory = GetMemory();
+        private const string CurrentVersionKey = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
+        private const string BiosKey = @"HARDWARE\DESCRIPTION\System\BIOS";
+        private const string CpuKey = @"HARDWARE\DESCRIPTION\System\CentralProcessor\0";
+        private const string DisplayClassKey = @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
+
+        public InfoFetch() : this(Probe.DefaultTimeout) { }
+
+        public InfoFetch(TimeSpan timeout)
+        {
+            var host = Probe.Start(GetModel);
+            var os = Probe.Start(GetOSName);
+            var kernel = Probe.Start(GetKernel);
+            var cpu = Probe.Start(() => GetCPUs().ToList());
+            var resolutions = Probe.Start(() => GetResolutions().ToList());
+            var gpus = Probe.Start(() => GetGPUs().ToList());
+            var memory = Probe.Start(GetMemory);
+
+            Probe.WaitAll(timeout, host, os, kernel, cpu, resolutions, gpus, memory);
+
+            SysInfo.Host = Probe.Result(host, string.Empty);
+            SysInfo.OSName = Probe.Result(os, string.Empty);
+            SysInfo.OSId = "windows";
+            SysInfo.Kernel = Probe.Result(kernel, string.Empty);
+            SysInfo.Uptime = ((int)(Environment.TickCount64 / 1000)).GetHumanReadableString();
+            SysInfo.CPU = Probe.Result(cpu, []);
+            SysInfo.Resolution = Probe.Result(resolutions, []);
+            SysInfo.GPUs = Probe.Result(gpus, []);
+            SysInfo.Memory = Probe.Result(memory, string.Empty);
         }
 
-        private static string? GetModel()
+        private static string? ReadString(string key, string name) =>
+            Registry.LocalMachine.OpenSubKey(key)?.GetValue(name)?.ToString()?.Trim();
+
+        private static string GetModel()
         {
-            ManagementClass mc = new ManagementClass("Win32_ComputerSystem");
-
-            using ManagementObjectCollection moc = mc.GetInstances();
-            if (moc.Count != 0)
-            {
-                foreach (ManagementObject mo in mc.GetInstances())
-                {
-                    // display general system information
-                    return $"{mo["Manufacturer"]} {mo["Model"]}";
-                }
-            }
-
-            return null;
+            var vendor = ReadString(BiosKey, "SystemManufacturer");
+            var product = ReadString(BiosKey, "SystemProductName");
+            return $"{vendor} {product}".Trim();
         }
 
-        private static (string os, string kernel, string lastBootTime) GetOSInfo()
+        private static string GetOSName()
         {
-            using var mos = new ManagementObjectSearcher(queryOS);
-            string osName = string.Empty, kernel = string.Empty, lastBootTime = string.Empty;
-            
-            foreach (ManagementObject managementObject in mos.Get())
-            {
-                if (managementObject["Caption"] != null)
-                    osName = managementObject["Caption"].ToString();
-
-                if (managementObject["Version"] != null)
-                    kernel = managementObject["Version"].ToString();
-
-                if (managementObject["LastBootUpTime"] != null)
-                {
-                    var boot = managementObject["LastBootUpTime"];
-                    lastBootTime = boot.ToString();
-                }
-            }
-
-            return (osName, kernel, lastBootTime);
-        }
-        
-        public static string GetUptime(string lastBootTime)
-        {
-            var bootTime = ManagementDateTimeConverter.ToDateTime(lastBootTime);
-
-            return (DateTime.Now - bootTime).ToString();
+            var product = ReadString(CurrentVersionKey, "ProductName") ?? "Windows";
+            var displayVersion = ReadString(CurrentVersionKey, "DisplayVersion");
+            int.TryParse(ReadString(CurrentVersionKey, "CurrentBuildNumber"), out var build);
+            return WindowsHelpers.FormatOSName(product, displayVersion, build);
         }
 
-        private static IEnumerable<string> GetResolutionList()
+        private static string GetKernel()
         {
-            var mc2 = new ManagementClass("Win32_DesktopMonitor");
-            
-            using var moc2 = mc2.GetInstances();
-            if (moc2.Count == 0) yield break;
-            foreach (ManagementObject mo in mc2.GetInstances())
-            {
-                // display general system information
-                if (mo["ScreenWidth"] is not null && mo["ScreenHeight"] is not null) 
-                    yield return $"{mo["ScreenWidth"]}x{mo["ScreenHeight"]}";
-            }
+            var version = Environment.OSVersion.Version;
+            var ubr = Registry.LocalMachine.OpenSubKey(CurrentVersionKey)?.GetValue("UBR");
+            return ubr is int revision
+                ? $"{version.Major}.{version.Minor}.{version.Build}.{revision}"
+                : version.ToString();
         }
 
-        private const string queryCPUs = "SELECT * FROM Win32_Processor";
         private static IEnumerable<string?> GetCPUs()
         {
-            using var mos_gpu = new ManagementObjectSearcher(queryCPUs); 
-            foreach (ManagementObject managementObject in mos_gpu.Get())
-            {
-                if (managementObject["Name"] is not null)
-                {
-                    yield return managementObject["Name"].ToString();
-                }
-            }
+            var name = ReadString(CpuKey, "ProcessorNameString");
+            if (string.IsNullOrEmpty(name)) yield break;
+            yield return $"{name} ({Environment.ProcessorCount})";
         }
 
-        private const string queryGPU = "SELECT * FROM Win32_VideoController";
         private static IEnumerable<string> GetGPUs()
         {
-            var query = from ManagementObject mo in new ManagementObjectSearcher(queryGPU)
-                    .Get()
-                where mo["Name"] != null
-                select mo["Name"].ToString();
+            using var classKey = Registry.LocalMachine.OpenSubKey(DisplayClassKey);
+            if (classKey is null) return [];
 
-            foreach (var name in query)
+            var names = new List<string>();
+            foreach (var sub in classKey.GetSubKeyNames())
             {
-                yield return name;
+                if (!int.TryParse(sub, out _)) continue; // skip "Properties" etc.
+                using var adapter = classKey.OpenSubKey(sub);
+                var desc = adapter?.GetValue("DriverDesc")?.ToString();
+                if (WindowsHelpers.IsRealGpu(desc) && !names.Contains(desc!))
+                    names.Add(desc!);
             }
+
+            return names;
         }
-        
+
         private static string GetMemory()
         {
-            ObjectQuery wql = new ObjectQuery(queryOS);
-            using ManagementObjectSearcher searcher = new ManagementObjectSearcher(wql);
-            using ManagementObjectCollection results = searcher.Get();
+            var status = new MemoryStatusEx { Length = (uint)Marshal.SizeOf<MemoryStatusEx>() };
+            if (!GlobalMemoryStatusEx(ref status)) return string.Empty;
 
-            foreach (ManagementObject result in results)
+            var total = status.TotalPhys / 1024 / 1024;
+            var used = (status.TotalPhys - status.AvailPhys) / 1024 / 1024;
+            return $"{used} MiB / {total} MiB";
+        }
+
+        private static unsafe IEnumerable<string> GetResolutions()
+        {
+            var results = new List<string>();
+            const int displayDeviceSize = 840;
+            const int devModeSize = 220;
+            const uint attachedToDesktop = 0x1;
+            const int enumCurrentSettings = -1;
+
+            var device = stackalloc byte[displayDeviceSize];
+            var mode = stackalloc byte[devModeSize];
+
+            for (uint i = 0; ; i++)
             {
-                return
-                    $"{(ulong)result["FreePhysicalMemory"] / 1024} MB / {(ulong)result["TotalVisibleMemorySize"] / 1024} MB";
+                new Span<byte>(device, displayDeviceSize).Clear();
+                *(uint*)device = displayDeviceSize; // cb
+                if (!EnumDisplayDevicesW(null, i, device, 0)) break;
+
+                var stateFlags = *(uint*)(device + 324);
+                if ((stateFlags & attachedToDesktop) == 0) continue;
+
+                new Span<byte>(mode, devModeSize).Clear();
+                *(ushort*)(mode + 68) = devModeSize; // dmSize
+                var deviceName = new string((char*)(device + 4));
+                if (!EnumDisplaySettingsW(deviceName, enumCurrentSettings, mode)) continue;
+
+                var width = *(uint*)(mode + 172);
+                var height = *(uint*)(mode + 176);
+                var hz = *(uint*)(mode + 184);
+                results.Add(hz > 1 ? $"{width}x{height} @ {hz}Hz" : $"{width}x{height}");
             }
 
-            return string.Empty;
+            return results;
         }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MemoryStatusEx
+        {
+            public uint Length;
+            public uint MemoryLoad;
+            public ulong TotalPhys;
+            public ulong AvailPhys;
+            public ulong TotalPageFile;
+            public ulong AvailPageFile;
+            public ulong TotalVirtual;
+            public ulong AvailVirtual;
+            public ulong AvailExtendedVirtual;
+        }
+
+        [LibraryImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool GlobalMemoryStatusEx(ref MemoryStatusEx buffer);
+
+        [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static unsafe partial bool EnumDisplayDevicesW(string? device, uint devNum, byte* displayDevice, uint flags);
+
+        [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static unsafe partial bool EnumDisplaySettingsW(string deviceName, int modeNum, byte* devMode);
+    }
+
+    public static class WindowsHelpers
+    {
+        /// <summary>
+        /// Windows 11 still reports "Windows 10" in ProductName; the build number (22000+) tells them apart.
+        /// </summary>
+        public static string FormatOSName(string productName, string? displayVersion, int build)
+        {
+            var name = build >= 22000 ? productName.Replace("Windows 10", "Windows 11") : productName;
+            return string.IsNullOrEmpty(displayVersion) ? name : $"{name} {displayVersion}";
+        }
+
+        public static bool IsRealGpu(string? driverDesc) =>
+            !string.IsNullOrWhiteSpace(driverDesc)
+            && !driverDesc.Contains("Basic Display", StringComparison.OrdinalIgnoreCase)
+            && !driverDesc.Contains("Basic Render", StringComparison.OrdinalIgnoreCase)
+            && !driverDesc.Contains("Remote Display", StringComparison.OrdinalIgnoreCase)
+            && !driverDesc.Contains("Indirect Display", StringComparison.OrdinalIgnoreCase);
     }
 }
