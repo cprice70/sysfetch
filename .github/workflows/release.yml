@@ -2,9 +2,17 @@ name: Release
 
 # Push a tag like v0.4.0 to build Native AOT binaries for every platform,
 # publish a GitHub Release, and (for non-prerelease tags) update the Homebrew tap.
+# Run it manually (workflow_dispatch) for a dry run: the same binaries and archives
+# are built and kept as workflow artifacts, but nothing is published.
 on:
   push:
     tags: [ "v*" ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to stamp into the dry-run build
+        required: false
+        default: 0.0.0-dev
 
 permissions:
   contents: read
@@ -40,7 +48,14 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
     - name: Resolve version
-      run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+        else
+          echo "VERSION=${INPUT_VERSION:-0.0.0-dev}" >> "$GITHUB_ENV"
+        fi
 
     - name: Publish
       run: dotnet publish sysfetch -c Release -r "${{ matrix.rid }}" -p:Version="$VERSION" -o out
@@ -63,6 +78,7 @@ jobs:
   release:
     name: GitHub Release
     needs: build
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -90,7 +106,7 @@ jobs:
   homebrew:
     name: Update Homebrew tap
     needs: release
-    if: ${{ !contains(github.ref_name, '-') }}
+    if: ${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
     runs-on: ubuntu-24.04
     env:
       TAP_REPO: ${{ github.repository_owner }}/homebrew-sysfetch
