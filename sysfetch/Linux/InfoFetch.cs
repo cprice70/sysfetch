@@ -16,6 +16,7 @@ namespace sysfetch.Linux
         public InfoFetch(TimeSpan timeout)
         {
             var os = Probe.Start(() => GetDistro("off"));
+            var osId = Probe.Start(GetOsId);
             var kernel = Probe.Start(GetKernel);
             var cpu = Probe.Start(() => GetCPUs().ToList());
             var host = Probe.Start(GetModel);
@@ -24,9 +25,10 @@ namespace sysfetch.Linux
             var memory = Probe.Start(GetMemory);
             var resolutions = Probe.Start(() => GetResolutions().ToList());
 
-            Probe.WaitAll(timeout, os, kernel, cpu, host, uptime, gpus, memory, resolutions);
+            Probe.WaitAll(timeout, os, osId, kernel, cpu, host, uptime, gpus, memory, resolutions);
 
             SysInfo.OSName = Probe.Result(os, string.Empty);
+            (SysInfo.OSId, SysInfo.OSIdLike) = Probe.Result(osId, ("linux", (IReadOnlyList<string>)[]));
             SysInfo.Kernel = Probe.Result(kernel, string.Empty);
             SysInfo.CPU = Probe.Result(cpu, []);
             SysInfo.Host = Probe.Result(host, string.Empty);
@@ -55,6 +57,13 @@ namespace sysfetch.Linux
             {
                 return string.Empty;
             }
+        }
+
+        private static (string id, IReadOnlyList<string> like) GetOsId()
+        {
+            var osRelease = ReadFile("/etc/os-release");
+            if (string.IsNullOrEmpty(osRelease)) osRelease = ReadFile("/usr/lib/os-release");
+            return LinuxHelpers.ParseOsReleaseId(osRelease);
         }
 
         private static string GetDistro(string distroShorthand)

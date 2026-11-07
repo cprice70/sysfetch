@@ -26,6 +26,8 @@ public class InfoFetch : IInfoFetch
         Probe.WaitAll(timeout, os, kernel, cpu, host, uptime, memory, gpus, resolutions);
 
         SysInfo.OSName = Probe.Result(os, null);
+
+        SysInfo.OSId = "macos";
         SysInfo.Kernel = Probe.Result(kernel, string.Empty);
         SysInfo.CPU = Probe.Result(cpu, []);
         SysInfo.Host = Probe.Result(host, string.Empty);

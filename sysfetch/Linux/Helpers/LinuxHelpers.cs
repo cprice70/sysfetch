@@ -56,6 +56,34 @@ namespace sysfetch.Linux.Helpers
         }
 
         /// <summary>
+        /// Reads ID and ID_LIKE from os-release contents (lowercased, quotes removed).
+        /// Defaults to "linux" when no ID is present.
+        /// </summary>
+        public static (string id, IReadOnlyList<string> like) ParseOsReleaseId(string osRelease)
+        {
+            string id = "linux";
+            IReadOnlyList<string> like = [];
+
+            foreach (var raw in osRelease.Split('\n'))
+            {
+                var parts = raw.Split('=', 2);
+                if (parts.Length != 2) continue;
+                var value = parts[1].Trim().Trim('"', '\'').ToLowerInvariant();
+                switch (parts[0].Trim())
+                {
+                    case "ID" when value.Length > 0:
+                        id = value;
+                        break;
+                    case "ID_LIKE":
+                        like = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        break;
+                }
+            }
+
+            return (id, like);
+        }
+
+        /// <summary>
         /// Computes used/total memory from /proc/meminfo contents, in MiB.
         /// Prefers MemAvailable (kernel 3.14+); falls back to the screenFetch formula:
         /// used = MemTotal + Shmem - MemFree - Buffers - Cached - SReclaimable.

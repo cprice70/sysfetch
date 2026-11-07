@@ -32,6 +32,7 @@ namespace sysfetch.Windows
 
             SysInfo.Host = Probe.Result(host, string.Empty);
             SysInfo.OSName = Probe.Result(os, string.Empty);
+            SysInfo.OSId = "windows";
             SysInfo.Kernel = Probe.Result(kernel, string.Empty);
             SysInfo.Uptime = ((int)(Environment.TickCount64 / 1000)).GetHumanReadableString();
             SysInfo.CPU = Probe.Result(cpu, []);
