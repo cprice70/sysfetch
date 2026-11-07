@@ -43,6 +43,7 @@ class Sysfetch < Formula
   desc "Fast system information tool (Native AOT .NET)"
   homepage "https://github.com/${repo}"
   version "${version}"
+  license "MIT"
 
   on_macos do
     on_arm do
