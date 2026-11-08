@@ -80,17 +80,15 @@ namespace sysfetch.Windows
             using var classKey = Registry.LocalMachine.OpenSubKey(DisplayClassKey);
             if (classKey is null) return [];
 
-            var names = new List<string>();
+            var descriptions = new List<string?>();
             foreach (var sub in classKey.GetSubKeyNames())
             {
                 if (!int.TryParse(sub, out _)) continue; // skip "Properties" etc.
                 using var adapter = classKey.OpenSubKey(sub);
-                var desc = adapter?.GetValue("DriverDesc")?.ToString();
-                if (WindowsHelpers.IsRealGpu(desc) && !names.Contains(desc!))
-                    names.Add(desc!);
+                descriptions.Add(adapter?.GetValue("DriverDesc")?.ToString());
             }
 
-            return names;
+            return WindowsHelpers.SelectGpus(descriptions);
         }
 
         private static string GetMemory()
@@ -173,6 +171,22 @@ namespace sysfetch.Windows
         {
             var name = build >= 22000 ? productName.Replace("Windows 10", "Windows 11") : productName;
             return string.IsNullOrEmpty(displayVersion) ? name : $"{name} {displayVersion}";
+        }
+
+        /// <summary>
+        /// Distinct adapter names, without generic Microsoft adapters when a real GPU is present.
+        /// A machine with no vendor driver (common in VMs) only has the generic adapter, so it is
+        /// shown rather than leaving the GPU line empty.
+        /// </summary>
+        public static List<string> SelectGpus(IEnumerable<string?> driverDescs)
+        {
+            var all = driverDescs
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Select(d => d!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var real = all.Where(IsRealGpu).ToList();
+            return real.Count > 0 ? real : all;
         }
 
         public static bool IsRealGpu(string? driverDesc) =>
