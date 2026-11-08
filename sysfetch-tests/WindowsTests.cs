@@ -22,4 +22,37 @@ public class WindowsTests
     {
         Assert.That(WindowsHelpers.IsRealGpu(desc), Is.EqualTo(expected));
     }
+
+    [Test]
+    public void SelectGpus_DropsGenericAdaptersWhenRealGpuPresent()
+    {
+        var gpus = WindowsHelpers.SelectGpus(
+            ["Microsoft Basic Display Adapter", "NVIDIA GeForce RTX 4080", "Microsoft Remote Display Adapter"]);
+
+        Assert.That(gpus, Is.EqualTo(new[] { "NVIDIA GeForce RTX 4080" }));
+    }
+
+    [Test]
+    public void SelectGpus_FallsBackToGenericAdapterWhenNothingElse()
+    {
+        // A VM without a vendor display driver (e.g. QEMU) only has the basic adapter.
+        var gpus = WindowsHelpers.SelectGpus(["Microsoft Basic Display Adapter", null, ""]);
+
+        Assert.That(gpus, Is.EqualTo(new[] { "Microsoft Basic Display Adapter" }));
+    }
+
+    [Test]
+    public void SelectGpus_RemovesDuplicatesAndBlanks()
+    {
+        var gpus = WindowsHelpers.SelectGpus(
+            ["Intel(R) UHD Graphics 770", "intel(r) uhd graphics 770", " ", null, "AMD Radeon RX 7900 XTX"]);
+
+        Assert.That(gpus, Is.EqualTo(new[] { "Intel(R) UHD Graphics 770", "AMD Radeon RX 7900 XTX" }));
+    }
+
+    [Test]
+    public void SelectGpus_EmptyWhenNoAdapters()
+    {
+        Assert.That(WindowsHelpers.SelectGpus([]), Is.Empty);
+    }
 }
