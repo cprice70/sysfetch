@@ -25,6 +25,13 @@ Homebrew (macOS and Linux):
 brew install cprice70/sysfetch/sysfetch
 ```
 
+Scoop (Windows x64 and arm64):
+
+```powershell
+scoop bucket add sysfetch https://github.com/cprice70/scoop-sysfetch
+scoop install sysfetch
+```
+
 Or download the archive for your platform from
 [Releases](https://github.com/cprice70/sysfetch/releases): `osx-arm64`, `osx-x64`,
 `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`. Each archive has a single
@@ -42,15 +49,17 @@ dotnet publish sysfetch -c Release -o out
 ## Releasing
 
 Push a tag such as `v0.4.0`. The `Release` workflow builds Native AOT binaries for all six
-targets, publishes a GitHub Release with checksums, and renders the Homebrew formula.
-If the `HOMEBREW_TAP_TOKEN` secret is set (a token with write access to
-`cprice70/homebrew-sysfetch`), the formula is pushed to the tap; otherwise it is kept
-as a workflow artifact. Tags containing `-` (e.g. `v0.5.0-rc.1`) are marked as
-pre-releases and skip the tap update.
+targets, publishes a GitHub Release with checksums, and renders the Homebrew formula
+and the Scoop manifest. If the `HOMEBREW_TAP_TOKEN` secret is set (a fine-grained token
+with Contents write access to `cprice70/homebrew-sysfetch` and `cprice70/scoop-sysfetch`),
+the formula is pushed to the tap and the manifest to the bucket; otherwise both are kept
+as workflow artifacts. Set `SCOOP_BUCKET_TOKEN` only if the bucket needs a separate token.
+Tags containing `-` (e.g. `v0.5.0-rc.1`) are marked as pre-releases and skip the tap and
+bucket updates.
 
 To try the release build without publishing, run the `Release` workflow manually from the
 Actions tab (or `gh workflow run release.yml -f version=0.4.0-test`). It builds and packages
-all six targets and keeps the archives as workflow artifacts; the release and tap jobs are
+all six targets and keeps the archives as workflow artifacts; the release, tap and bucket jobs are
 skipped. Every CI run also uploads the Native AOT binary for each OS as an artifact.
 
 ## Usage

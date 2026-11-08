@@ -160,3 +160,63 @@ jobs:
           git commit -m "sysfetch ${GITHUB_REF_NAME#v}"
           git push
         fi
+
+  scoop:
+    name: Update Scoop bucket
+    needs: release
+    if: ${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-24.04
+    env:
+      BUCKET_REPO: ${{ github.repository_owner }}/scoop-sysfetch
+      # One fine-grained token with Contents write on both the tap and the bucket is enough;
+      # SCOOP_BUCKET_TOKEN only needs to exist if the bucket uses a separate token.
+      BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/download-artifact@v8
+      with:
+        pattern: dist-win-*
+        merge-multiple: true
+        path: dist
+
+    - name: Render manifest
+      run: |
+        mkdir -p scoop
+        scripts/render-scoop.sh "${GITHUB_REF_NAME#v}" dist "$GITHUB_REPOSITORY" > scoop/sysfetch.json
+        jq . scoop/sysfetch.json
+
+    - name: Keep manifest as artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: scoop-manifest
+        path: scoop/sysfetch.json
+
+    - name: Skip notice
+      if: env.BUCKET_TOKEN == ''
+      run: echo "::notice::No bucket token is set; manifest rendered but bucket not updated."
+
+    - name: Check out bucket
+      if: env.BUCKET_TOKEN != ''
+      uses: actions/checkout@v7
+      with:
+        repository: ${{ env.BUCKET_REPO }}
+        token: ${{ env.BUCKET_TOKEN }}
+        path: bucket
+
+    - name: Push manifest
+      if: env.BUCKET_TOKEN != ''
+      run: |
+        mkdir -p bucket/bucket
+        cp scoop/sysfetch.json bucket/bucket/sysfetch.json
+        cd bucket
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add bucket/sysfetch.json
+        if git diff --cached --quiet; then
+          echo "Manifest unchanged."
+        else
+          git commit -m "sysfetch ${GITHUB_REF_NAME#v}"
+          git push
+        fi
